@@ -8,6 +8,11 @@ on:
     branches: ['rotatrix/*']
   workflow_dispatch:
     inputs:
+      qt_variant:
+        type: choice
+        description: Qt variant for a focused retry
+        options: [all, qt5, qt6]
+        default: all
       debug_enabled:
         type: boolean
         description: 'Run the build with tmate debugging enabled (https://github.com/marketplace/actions/debugging-with-tmate)'
@@ -15,7 +20,7 @@ on:
         default: false
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.qt_variant || 'all' }}
   cancel-in-progress: true
 
 jobs:
@@ -23,7 +28,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        qt: [ qt5, qt6 ]
+        qt: ${{ fromJSON(inputs.qt_variant == 'qt5' && '["qt5"]' || inputs.qt_variant == 'qt6' && '["qt6"]' || '["qt5", "qt6"]') }}
     runs-on: windows-2022
     name: windows-2022 ${{ matrix.qt }}
     defaults:
@@ -69,7 +74,9 @@ jobs:
           if [ '${{ matrix.qt }}' = qt6 ]; then
             /ucrt64/bin/windeployqt6 --release --compiler-runtime package/openscad.exe
           else
-            /ucrt64/bin/windeployqt --release --compiler-runtime package/openscad.exe
+            deployqt=$(pacman -Ql mingw-w64-ucrt-x86_64-qt5-base | awk '/\/windeployqt[^\/]*\.exe$/ {print $2; exit}')
+            test -n "$deployqt"
+            "$deployqt" --release --compiler-runtime package/openscad.exe
           fi
           ldd build/openscad.exe | awk '/\/ucrt64\// {print $3}' | xargs -r -I{} cp '{}' package/
           test -f package/openscad.exe
