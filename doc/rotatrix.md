@@ -90,3 +90,41 @@ Automatic retries are stopped because repeated full builds have established the
 upstream failure overlap. No failing test has been excluded to produce a green
 status. ARM64 is available as a development test package; complete rendering and
 physical-device acceptance remain outstanding before maintained release promotion.
+
+
+## Picking and diagnostic repair (2026-09-29)
+
+User testing found nonfunctional picks, clipped diagnostic rows and absent
+semantic colors and graphics. The initial integration did not meet the SDK
+rendering contract; the earlier compilation results did not validate these paths.
+The fork workflow and its linked navigation, validation, coordinates, picking,
+diagnostics, rendering, lifecycle, settings and pivot guidance were reviewed.
+The repair stays within the previously authorized navigation/diagnostic scope.
+
+- Cursor and independent center picks render the current native geometry into a
+  single-sample depth/stencil framebuffer. This avoids depth reads from Qt's
+  multisample display framebuffer. Depth state is established explicitly, and
+  unprojection uses the native cached world-camera matrices, not renderer state.
+  Axes, crosshairs, measurement decorations, pivots and diagnostic graphics are
+  excluded. Native context/framebuffer and display state are restored afterward.
+- All SDK world segments are rendered with their supplied colors, opacity and
+  widths and the current camera. Screen samples use labeled crosshairs; labels
+  keep their supplied names and multiline layout. Positions scale only once.
+- Complete text rows preserve the SDK palette in a resizable, scrollable native
+  dock panel. This companion panel avoids truncating evidence in a small viewport;
+  geometry remains in the viewport. Text updates preserve scroll position.
+- The authoritative pivot is independent of diagnostics: a lime disc with a black
+  annulus, constant logical-pixel size and complementary depth passes (opaque
+  exposed fragments, 23% opacity behind geometry), without depth writes.
+- OpenSCAD measurement points/edges are not a selected solid/body. Selection-only
+  surface picks and selection bounds remain unavailable; they are not substituted
+  with whole-model picks. Per-hit body bounds are omitted because the depth buffer
+  does not identify a body. Model bounds remain available separately.
+
+Validation for this repair is pending platform compilation and actual host checks.
+Required native checks: hit/miss and independent center picks in preview and full
+render, perspective/orthographic projections, translated/rotated models, MSAA on
+and off, high DPI, portrait/landscape windows, colored multiline labels, scrollable
+rows in narrow docks, native camera movement, partially occluded pivots, and
+cleanup after disconnect, disable, scene replacement and window close. Prior CI
+and camera-math tests do not establish these rendering checks.
