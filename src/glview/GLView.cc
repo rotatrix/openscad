@@ -78,6 +78,7 @@ void GLView::teardownShader()
 void GLView::setRenderer(std::shared_ptr<Renderer> r)
 {
   this->renderer = r;
+  ++sceneRevision;
 }
 
 /* update the color schemes of the Renderer attached to this GLView

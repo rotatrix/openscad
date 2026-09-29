@@ -39,6 +39,7 @@ public:
   void setupShader();
   void teardownShader();
 
+  unsigned long sceneRevision = 0;
   void setRenderer(std::shared_ptr<Renderer> r);
   [[nodiscard]] Renderer *getRenderer() const { return this->renderer.get(); }
 

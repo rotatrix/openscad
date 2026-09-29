@@ -1823,3 +1823,5 @@ add_sanitizers(OpenSCADLibInternal)
 if(INFO)
   include("cmake/Modules/info.cmake")
 endif()
+
+include(cmake/OpenAxis.cmake)

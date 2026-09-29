@@ -22,6 +22,10 @@
 #include "glview/GLView.h"
 #include "../core/MouseConfig.h"
 
+#ifdef ENABLE_OPENAXIS
+#include "gui/OpenAxisController.h"
+#endif
+
 class QGLView : public QOpenGLWidget, public GLView
 {
   Q_OBJECT
@@ -79,6 +83,9 @@ public:
 
 private:
   void init();
+#ifdef ENABLE_OPENAXIS
+  std::unique_ptr<OpenAxisController> openaxis;
+#endif
 
   bool mouse_drag_active;
   bool mouse_drag_moved = true;

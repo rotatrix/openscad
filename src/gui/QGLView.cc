@@ -91,10 +91,16 @@ QGLView::QGLView(QWidget *parent) : QOpenGLWidget(parent)
 {
   setFormat(compatibleWidgetFormat());
   init();
+#ifdef ENABLE_OPENAXIS
+  openaxis = std::make_unique<OpenAxisController>(*this);
+#endif
 }
 
 QGLView::~QGLView()
 {
+#ifdef ENABLE_OPENAXIS
+  openaxis.reset();
+#endif
   // Just to make sure we can call GL functions in the supertype destructor
   makeCurrent();
 }
@@ -215,7 +221,13 @@ void QGLView::resizeGL(int w, int h)
 
 void QGLView::paintGL()
 {
+#ifdef ENABLE_OPENAXIS
+  openaxis->refresh();
+#endif
   GLView::paintGL();
+#ifdef ENABLE_OPENAXIS
+  openaxis->draw();
+#endif
 
   if (statusLabel) {
     auto status = QString("%1 (%2x%3)")
