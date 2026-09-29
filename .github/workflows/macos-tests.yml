@@ -78,7 +78,7 @@ jobs:
         app=build/OpenSCAD.app
         while IFS= read -r -d '' binary; do
           if file -b "$binary" | grep -q 'Mach-O'; then
-            lipo -verify_arch '${{ matrix.arch }}' "$binary"
+            lipo "$binary" -verify_arch '${{ matrix.arch }}'
           fi
         done < <(find "$app" -type f -print0)
         "$app/Contents/MacOS/OpenSCAD" --version
