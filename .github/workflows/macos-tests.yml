@@ -59,6 +59,7 @@ jobs:
     - name: Install Homebrew packages
       env:
         HOMEBREW_NO_AUTO_UPDATE: 1
+        OPENSCAD_INSTALL_CCACHE: 0
       run: |
         export HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1
         ./scripts/macosx-build-homebrew.sh ${{ matrix.qt }}

@@ -17,3 +17,7 @@ The upstream nightly's platform matrices, dependencies and build commands are
 preserved. Headless matrix entries keep the SDK disabled. Runner labels are
 pinned where practical. Downloadable packages and interactive device validation
 remain required before promotion to a maintained branch.
+
+macOS CI reuses installed Homebrew dependencies and skips ccache because the
+upstream build explicitly sets USE_CCACHE=OFF. This avoids rebuilding LLVM/Rust
+for an unused build cache on Intel runners. Application features remain enabled.

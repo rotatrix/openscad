@@ -32,8 +32,10 @@ if [ ! -f $OPENSCADDIR/openscad.appdata.xml.in ]; then
   exit 0
 fi
 
-log "Updating homebrew"
-time brew update
+if [[ "${HOMEBREW_NO_AUTO_UPDATE:-0}" != 1 ]]; then
+  log "Updating homebrew"
+  time brew update
+fi
 
 log "Listing homebrew configuration"
 time brew config
@@ -51,22 +53,22 @@ $TAP tap openscad/homebrew-tap
 $TAP trust openscad/homebrew-tap
 
 for formula in pkg-config boost eigen cgal glew glib opencsg freetype libzip libxml2 fontconfig harfbuzz lib3mf double-conversion imagemagick ccache ghostscript tbb catch2; do
+  if [[ "$formula" == ccache && "${OPENSCAD_INSTALL_CCACHE:-1}" == 0 ]]; then continue; fi
   log "Installing formula $formula"
-  brew ls --versions $formula
-  time brew install $formula
+  brew ls --versions "$formula" || time brew install "$formula"
 done
 
 if [[ $USE_QT6 == 1 ]]; then 
   for formula in qt qscintilla2; do
-    log "Installing formula $formula"
-    brew ls --versions $formula
-    time brew install $formula
+    if [[ "$formula" == ccache && "${OPENSCAD_INSTALL_CCACHE:-1}" == 0 ]]; then continue; fi
+  log "Installing formula $formula"
+    brew ls --versions "$formula" || time brew install "$formula"
   done
 else
   for formula in qt5; do
-    log "Installing formula $formula"
-    brew ls --versions $formula
-    time brew install $formula
+    if [[ "$formula" == ccache && "${OPENSCAD_INSTALL_CCACHE:-1}" == 0 ]]; then continue; fi
+  log "Installing formula $formula"
+    brew ls --versions "$formula" || time brew install "$formula"
   done
   # FIXME: Workaround for https://github.com/openscad/openscad/issues/5058
   curl -o qscintilla2.rb https://raw.githubusercontent.com/Homebrew/homebrew-core/da59bcdf7f1dadf70e30240394ddc0bd6014affe/Formula/q/qscintilla2.rb
