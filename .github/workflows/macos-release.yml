@@ -3,16 +3,16 @@ name: macos-release
 on:
   push:
     branches:
-      - macos-release-build
+      - 'rotatrix/release-build'
     tags:
-      - '*'
+      - '*-rotatrix.*'
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-15-intel
     steps:
     - name: Checkout OpenSCAD
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       with:
         submodules: 'recursive'
     - name: Setup MacPorts, Libraries & Build
@@ -112,8 +112,9 @@ jobs:
             shasum -a 512 /tmp/out/"$MACPORTS_CACHE"
         fi
     - name: Upload Artifacts
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       if: ${{ always() }}
       with:
-        name: Build Artifacts
+        name: macos-release-${{ github.sha }}
+        retention-days: 10
         path: /tmp/out/

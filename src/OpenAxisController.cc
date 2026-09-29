@@ -196,7 +196,10 @@ struct OpenAxisController::Impl : openaxis::NavigationAdapter {
       view.makeCurrent();
       // Render the current camera before reading depth; queued writes may have
       // changed the camera since the last paint event.
+      const bool axes = view.showAxes(), crosshairs = view.showCrosshairs();
+      view.setShowAxes(false); view.setShowCrosshairs(false);
       view.GLView::paintGL();
+      view.setShowAxes(axes); view.setShowCrosshairs(crosshairs);
       GLint viewport[4]; GLdouble model[16], projection[16];
       glGetIntegerv(GL_VIEWPORT, viewport);
       glGetDoublev(GL_MODELVIEW_MATRIX, model);
@@ -215,9 +218,24 @@ struct OpenAxisController::Impl : openaxis::NavigationAdapter {
     return nullptr;
   }
   void draw() {
-    if (!available() || !visible) return;
+    if (!available() || (!visible && !pivot)) return;
     const auto frame = diagnostics.presentation();
+    std::optional<QPointF> pivot_pixel;
+    if (pivot) {
+      view.setupCamera();
+      glTranslated(view.cam.object_trans.x(), view.cam.object_trans.y(), view.cam.object_trans.z());
+      GLdouble model[16], projection[16], x, y, z; GLint viewport[4];
+      glGetDoublev(GL_MODELVIEW_MATRIX, model); glGetDoublev(GL_PROJECTION_MATRIX, projection);
+      glGetIntegerv(GL_VIEWPORT, viewport);
+      if (gluProject(pivot->x, pivot->y, pivot->z, model, projection, viewport, &x, &y, &z) && z >= 0 && z <= 1)
+        pivot_pixel = QPointF(x / view.devicePixelRatioF(), (viewport[3] - y) / view.devicePixelRatioF());
+    }
     QPainter painter(&view);
+    if (pivot_pixel) {
+      painter.setPen(QPen(Qt::black, 1.5)); painter.setBrush(Qt::green);
+      painter.drawEllipse(*pivot_pixel, 4., 4.);
+    }
+    if (!visible) return;
     painter.setPen(Qt::white);
     QString status = QString("OpenAxis: %1 | %2").arg(QString::fromStdString(connection.status().state),
       focused ? "Focused" : "Inactive");

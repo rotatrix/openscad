@@ -3,15 +3,17 @@ name: cmake
 on:
   push:
     branches:
-      - master
+      - 'rotatrix/**'
   pull_request:
+    branches: ['rotatrix/*']
+  workflow_dispatch:
 
 jobs:
   build:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-18.04, ubuntu-20.04 ]
+        os: [ ubuntu-22.04 ]
 
     runs-on: ${{ matrix.os }}
 
@@ -19,23 +21,40 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
     - name: Submodules
       run: git submodule update --init --recursive
     - name: Install dependencies
-      run: ./scripts/travis-ci-before-install-linux.sh bionic
+      run: ./scripts/travis-ci-before-install-linux.sh jammy
     - name: Dependency fixup
-      run: sudo apt-get install qt5-default gettext gcovr
+      run: |
+        sudo apt-get install gettext gcovr libssl-dev libcairo2-dev xvfb
+        python3 -m pip install cmake==3.31.6
     - name: Build and test
       run: ./scripts/github-ci.sh build test coverage
     - name: Upload Test Result Report
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       if: ${{ always() }}
       with:
-        name: Test Result Report (${{ matrix.os }})
+        name: test-${{ matrix.os }}-${{ github.sha }}
+        retention-days: 10
         path: b/tests/Testing/Temporary/*_report.html
     - name: Upload Code Coverage Report
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
-        name: Code Coverage Report (${{ matrix.os }})
+        name: coverage-${{ matrix.os }}-${{ github.sha }}
+        retention-days: 10
         path: c/coverage*.html
+    - name: Package Linux test build
+      run: |
+        mkdir -p package/openscad
+        cp b/openscad package/openscad/
+        cp -r libraries examples fonts color-schemes locale package/openscad/
+        cp COPYING doc/rotatrix.md package/openscad/
+        tar -C package -czf openscad-linux-x86_64.tar.gz openscad
+    - uses: actions/upload-artifact@v4
+      with:
+        name: openscad-linux-x86_64-${{ github.sha }}
+        retention-days: 10
+        if-no-files-found: error
+        path: openscad-linux-x86_64.tar.gz

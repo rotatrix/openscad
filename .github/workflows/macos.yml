@@ -3,15 +3,17 @@ name: macos
 on:
   push:
     branches:
-      - master
+      - 'rotatrix/**'
   pull_request:
+    branches: ['rotatrix/*']
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-15-intel
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
     - name: Checkout MCAD
       run: |
         git submodule update --init --recursive
@@ -23,7 +25,9 @@ jobs:
         ./scripts/macosx-build-homebrew.sh
     - name: Build OpenSCAD
       run: |
-        qmake openscad.pro CONFIG-=debug CONFIG+=experimental CONFIG+=snapshot CONFIG+=info
+        cmake -S cmake/openaxis-qmake -B openaxis-build -DCMAKE_BUILD_TYPE=Release
+        cmake --build openaxis-build --parallel 2
+        qmake openscad.pro CONFIG+=openaxis CONFIG-=debug CONFIG+=experimental CONFIG+=snapshot CONFIG+=info
         make -j2
         cd tests
         cmake .
@@ -33,8 +37,18 @@ jobs:
         cd tests
         ctest -j2 -E 'edges_view-options-tests'
     - name: Upload Test Result Report
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       if: ${{ always() }}
       with:
-        name: Test Result Report (MacOS)
+        name: test-macos-${{ github.sha }}
+        retention-days: 10
         path: tests/Testing/Temporary/*_report.html
+    - name: Package macOS test build
+      run: |
+        macdeployqt OpenSCAD.app -dmg
+    - uses: actions/upload-artifact@v4
+      with:
+        name: openscad-macos-x86_64-${{ github.sha }}
+        retention-days: 10
+        if-no-files-found: error
+        path: OpenSCAD.dmg

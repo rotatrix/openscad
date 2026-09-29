@@ -2,6 +2,7 @@
 
 DIST="$1"
 
+
 PACKAGES1="build-essential bison cmake curl flex git-core imagemagick ghostscript"
 PACKAGES2="libboost-all-dev libboost-dev libeigen3-dev libzip-dev"
 PACKAGES3="libxi-dev libxmu-dev qtbase5-dev qtmultimedia5-dev libqt5opengl5-dev libqt5scintilla2-dev"
@@ -24,6 +25,10 @@ elif [[ "$DIST" == "focal" ]]; then
 
     LIB3MF_REPO="https://download.opensuse.org/repositories/home:/t-paul:/lib3mf/xUbuntu_20.04/"
 
+elif [[ "$DIST" == "jammy" ]]; then
+    sudo apt-get update -qq
+    sudo apt-get install -qq $PACKAGES1 $PACKAGES2 $PACKAGES3 $PACKAGES4 $PACKAGES5
+    exit 0
 else
 
     echo "ERROR: unhandled DIST: $DIST"

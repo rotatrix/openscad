@@ -3,18 +3,20 @@ name: windows
 on:
   push:
     branches:
-      - master
+      - 'rotatrix/**'
   pull_request:
+    branches: ['rotatrix/*']
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2022
     defaults:
       run:
         shell: msys2 {0}
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Setup MSYS2 Environment
         uses: msys2/setup-msys2@v2
         with:
@@ -27,7 +29,9 @@ jobs:
       - name: Build OpenSCAD
         run: |
           git submodule update --init --recursive
-          qmake openscad.pro CONFIG-=debug CONFIG+=experimental CONFIG+=snapshot CONFIG+=info
+          cmake -S cmake/openaxis-qmake -B openaxis-build -G 'MinGW Makefiles' -DCMAKE_BUILD_TYPE=Release
+          cmake --build openaxis-build --parallel 2
+          qmake openscad.pro CONFIG+=openaxis CONFIG-=debug CONFIG+=experimental CONFIG+=snapshot CONFIG+=info
           mingw32-make.exe -j2
           cd tests
           EIGENDIR=/mingw64/include/eigen3 /mingw64/bin/cmake.exe -G 'MSYS Makefiles' .
@@ -38,10 +42,25 @@ jobs:
           cd tests
           ctest -j2 -E 'opencsgtest_issue1165|opencsgtest_issue1215|throwntogethertest_issue1089|throwntogethertest_issue1215|openscad-nonascii|import_3mf|3mfpngtest|3mfexport|pdfexporttest_centered'
       - name: Upload Test Result Report
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: Test Result Report (Windows)
+          name: test-windows-${{ github.sha }}
+          retention-days: 10
           path: |
             tests/output/
             tests/Testing/Temporary/*_report.html
+      - name: Package Windows test build
+        run: |
+          mkdir -p package/openscad
+          cp release/openscad.exe package/openscad/
+          windeployqt --release --compiler-runtime package/openscad/openscad.exe
+          ldd release/openscad.exe | awk '/\/mingw64\// {print $3}' | xargs -r -I{} cp '{}' package/openscad/
+          cp -r libraries examples fonts color-schemes locale package/openscad/
+          cp COPYING doc/rotatrix.md package/openscad/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openscad-windows-x86_64-${{ github.sha }}
+          retention-days: 10
+          if-no-files-found: error
+          path: package/
