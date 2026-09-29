@@ -74,9 +74,8 @@ jobs:
           if [ '${{ matrix.qt }}' = qt6 ]; then
             /ucrt64/bin/windeployqt6 --release --compiler-runtime package/openscad.exe
           else
-            deployqt=$(pacman -Ql mingw-w64-ucrt-x86_64-qt5-base | awk '/\/windeployqt[^\/]*\.exe$/ {print $2; exit}')
-            test -n "$deployqt"
-            "$deployqt" --release --compiler-runtime package/openscad.exe
+            pacman --noconfirm --sync --needed mingw-w64-ucrt-x86_64-qt5-tools
+            /ucrt64/bin/windeployqt-qt5 --release --compiler-runtime package/openscad.exe
           fi
           ldd build/openscad.exe | awk '/\/ucrt64\// {print $3}' | xargs -r -I{} cp '{}' package/
           test -f package/openscad.exe
