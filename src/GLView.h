@@ -30,6 +30,7 @@ class GLView
 public:
 	GLView();
 	void setRenderer(class Renderer* r);
+	unsigned long sceneRevision = 0;
 	Renderer *getRenderer() const { return this->renderer; }
 
 	void initializeGL();

@@ -700,3 +700,5 @@ if(INFO)
 endif()
 
 add_subdirectory(tests)
+
+include(cmake/OpenAxis.cmake)

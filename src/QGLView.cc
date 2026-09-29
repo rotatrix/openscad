@@ -60,6 +60,9 @@ QGLView::QGLView(QWidget *parent) :
 #endif
 {
   init();
+#ifdef ENABLE_OPENAXIS
+  openaxis.reset(new OpenAxisController(*this));
+#endif
 }
 
 #if defined(_WIN32) && !defined(USE_QOPENGLWIDGET)
@@ -177,7 +180,13 @@ void QGLView::resizeGL(int w, int h)
 
 void QGLView::paintGL()
 {
+#ifdef ENABLE_OPENAXIS
+  openaxis->refresh();
+#endif
   GLView::paintGL();
+#ifdef ENABLE_OPENAXIS
+  openaxis->draw();
+#endif
 
   if (statusLabel) {
 		auto status = QString("%1 (%2x%3)")

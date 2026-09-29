@@ -42,6 +42,7 @@ GLView::GLView()
 void GLView::setRenderer(Renderer* r)
 {
   renderer = r;
+  ++sceneRevision;
 }
 
 /* update the color schemes of the Renderer attached to this GLView

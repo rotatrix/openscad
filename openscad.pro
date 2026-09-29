@@ -767,3 +767,5 @@ info: {
 
 DISTFILES += \
     sounds/complete.wav
+
+include(openaxis.pri)

@@ -15,6 +15,10 @@
 #include "GLView.h"
 #include "renderer.h"
 
+#ifdef ENABLE_OPENAXIS
+#include "OpenAxisController.h"
+#endif
+
 class QGLView :
 #ifdef USE_QOPENGLWIDGET
 		public QOpenGLWidget,
@@ -74,6 +78,9 @@ public:
 
 private:
 	void init();
+#ifdef ENABLE_OPENAXIS
+  std::unique_ptr<OpenAxisController> openaxis;
+#endif
 
 	bool mouse_drag_active;
 	bool mouse_drag_moved = true;
