@@ -68,6 +68,10 @@ jobs:
           cmake .. -DENABLE_OPENAXIS=ON -G"Ninja" -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release -DEXPERIMENTAL=ON -DSNAPSHOT=ON -DUSE_QT6=${{ matrix.qt == 'qt6' && 'ON' || 'OFF' }}
           cmake --build . -j4
           cmake --install . --prefix=.
+      - name: Run Test Suite
+        run: |
+          cd build
+          ctest -j4
       - name: Package Windows test build
         run: |
           cmake --install build --prefix "$PWD/package"
@@ -75,7 +79,7 @@ jobs:
             /ucrt64/bin/windeployqt6 --release --compiler-runtime package/openscad.exe
           else
             pacman --noconfirm --sync --needed mingw-w64-ucrt-x86_64-qt5-tools
-            /ucrt64/bin/windeployqt-qt5 --release --compiler-runtime package/openscad.exe
+            /ucrt64/bin/windeployqt-qt5 --release --compiler-runtime --no-angle --no-opengl-sw package/openscad.exe
           fi
           ldd build/openscad.exe | awk '/\/ucrt64\// {print $3}' | xargs -r -I{} cp '{}' package/
           test -f package/openscad.exe
@@ -85,10 +89,6 @@ jobs:
           path: package/
           retention-days: 10
           if-no-files-found: error
-      - name: Run Test Suite
-        run: |
-          cd build
-          ctest -j4
       - name: Setup (detached) tmate session if enabled
         uses: mxschmitt/action-tmate@v3
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
