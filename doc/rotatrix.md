@@ -57,4 +57,15 @@ The inherited upstream matrix excluded ARM64 due to a software-renderer concern.
 Rotatrix now includes native macos-15 ARM64 alongside macos-15-intel x86_64.
 Both run the same tests, with only the existing upstream PDF-font exclusion.
 Packages must pass architecture checks for every Mach-O file, a native STL export,
-and DMG integrity verification. ARM64 validation is pending its first CI run.
+and DMG integrity verification. ARM64 package verification passed in run 36613544426: every bundled Mach-O
+supports ARM64, the packaged application exported STL natively, and the DMG
+passed integrity verification. Download:
+https://github.com/rotatrix/openscad/actions/runs/36613544426/artifacts/11053799626
+
+Full test validation remains incomplete. The OpenAxis run failed 27 image tests.
+An exact upstream source comparison (run 36617328767) also failed 27, with 26
+shared failures. Only preview-cgal_highlight-modifier failed in the OpenAxis run;
+only preview-manifold_minkowski3-erosion failed in the upstream run. This is not
+sufficient evidence to declare zero regressions. Focused ARM64 reruns repeat
+failing cases up to three times to identify intermittent rendering differences;
+reproducible failures still fail CI. Neither run validates physical-device input.
