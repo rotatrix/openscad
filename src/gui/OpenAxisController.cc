@@ -1,14 +1,13 @@
 #include "gui/QGLView.h"
 #include "gui/OpenAxisController.h"
 #include "gui/OpenAxisCamera.h"
+#include "gui/OpenAxisOverlay.h"
 #include <QApplication>
 #include <QAction>
 #include <QCursor>
 #include <QPainter>
 #include <QMenu>
 #include <QTimer>
-#include <QDockWidget>
-#include <QMainWindow>
 #include <QTextEdit>
 #include <QScrollBar>
 #include <QPointer>
@@ -27,6 +26,8 @@
 
 namespace {
 using namespace OpenAxisCamera;
+using OpenAxisUI::ScreenOverlay;
+using OpenAxisUI::tone;
 class Scheduler : public QObject, public openaxis::Scheduler
 {
 public:
@@ -75,18 +76,11 @@ struct OpenAxisController::Impl : openaxis::NavigationAdapter {
   Camera::ProjectionType last_projection = Camera::ProjectionType::PERSPECTIVE;
   std::optional<openaxis::Vec3> pivot;
   std::optional<double> expiry;
-  QPointer<QDockWidget> diagnostic_panel;
+  QPointer<ScreenOverlay> screen_overlay;
   QPointer<QTextEdit> diagnostic_text;
   QString last_text;
-
-  static QColor tone(const std::string& name)
-  {
-    const auto& palette = openaxis::diagnostic_colors();
-    auto it = palette.find(name);
-    if (it == palette.end()) return Qt::white;
-    const auto& rgb = it->second;
-    return QColor(rgb[0], rgb[1], rgb[2]);
-  }
+  std::uint64_t marker_revision = std::numeric_limits<std::uint64_t>::max();
+  std::string marker_context;
 
   explicit Impl(QGLView& v)
     : view(v),
@@ -123,7 +117,8 @@ struct OpenAxisController::Impl : openaxis::NavigationAdapter {
     scheduler.before = {};
     connection.stop();
     session.close();
-    delete diagnostic_panel;
+    delete diagnostic_text;
+    delete screen_overlay;
   }
   bool available() const
   {
@@ -321,6 +316,10 @@ struct OpenAxisController::Impl : openaxis::NavigationAdapter {
   }
   void draw()
   {
+    if (!available() || !visible) {
+      if (screen_overlay) screen_overlay->hide();
+      if (diagnostic_text) diagnostic_text->hide();
+    }
     if (!available() || (!visible && !pivot)) return;
     const auto frame = diagnostics.presentation();
     // Draw world evidence with the current native camera, including mouse
@@ -402,34 +401,23 @@ struct OpenAxisController::Impl : openaxis::NavigationAdapter {
     glUseProgram(program);
     glPopAttrib();
     if (!visible) return;
-    QPainter painter(&view);
-    painter.setClipRect(view.rect());
-    painter.setRenderHint(QPainter::Antialiasing);
-    if (frame.context == context) {
-      for (const auto& marker : frame.markers) {
-        const QPointF point(marker.point[0], marker.point[1]);
-        if (!view.rect().contains(point.toPoint())) continue;
-        auto color = tone(marker.tone);
-        color.setAlphaF(0.65);
-        painter.setPen(QPen(color, 2));
-        painter.drawLine(point + QPointF(-9, 0), point + QPointF(9, 0));
-        painter.drawLine(point + QPointF(0, -9), point + QPointF(0, 9));
-        const auto labels = QString::fromStdString(marker.label).split('\n');
-        int width = 0;
-        for (const auto& label : labels)
-          width = std::max(width, painter.fontMetrics().horizontalAdvance(label));
-        const double left =
-          std::clamp(point.x() + 12, 4., std::max(4., double(view.width() - width - 8)));
-        const double top = std::clamp(point.y() - 8 - painter.fontMetrics().ascent(), 4.,
-                                      std::max(4., double(view.height() - labels.size() * 15 - 8)));
-        painter.fillRect(QRectF(left - 3, top - 2, width + 6, labels.size() * 15 + 4),
-                         QColor(0, 0, 0, 210));
-        painter.setPen(tone(marker.tone));
-        for (int i = 0; i < labels.size(); ++i)
-          painter.drawText(QPointF(left, top + painter.fontMetrics().ascent() + i * 15), labels[i]);
+    if (screen_overlay) {
+      screen_overlay->setGeometry(view.rect());
+      screen_overlay->markers =
+        frame.context == context ? frame.markers : std::vector<openaxis::DiagnosticMarker>{};
+      screen_overlay->show();
+      if (marker_revision != frame.revision || marker_context != context) {
+        marker_revision = frame.revision;
+        marker_context = context;
+        screen_overlay->update();
       }
     }
     if (diagnostic_text) {
+      // Keep all rows accessible without resizing the drawable viewport.
+      diagnostic_text->setGeometry(8, 8, std::max(1, std::min(460, view.width() - 16)),
+                                   std::max(1, std::min(220, view.height() / 3)));
+      diagnostic_text->show();
+      diagnostic_text->raise();
       QString html = QString("<p>OpenAxis: %1 | %2</p>")
                        .arg(QString::fromStdString(connection.status().state).toHtmlEscaped(),
                             focused ? "Focused" : "Inactive");
@@ -471,19 +459,16 @@ OpenAxisController::OpenAxisController(QGLView& v) : QObject(&v), impl(std::make
   });
   // The viewport is constructed before the main window's menus.
   QTimer::singleShot(0, this, [this, diagnostics, navigation] {
-    if (auto window = qobject_cast<QMainWindow *>(impl->view.window())) {
-      impl->diagnostic_panel = new QDockWidget(tr("OpenAxis Diagnostics"), window);
-      impl->diagnostic_panel->setObjectName("OpenAxisDiagnosticsDock");
-      impl->diagnostic_text = new QTextEdit(impl->diagnostic_panel);
-      impl->diagnostic_text->setReadOnly(true);
-      impl->diagnostic_text->setFocusPolicy(Qt::NoFocus);
-      impl->diagnostic_text->setStyleSheet("QTextEdit { background: #181818; color: white; }");
-      impl->diagnostic_panel->setWidget(impl->diagnostic_text);
-      window->addDockWidget(Qt::RightDockWidgetArea, impl->diagnostic_panel);
-      impl->diagnostic_panel->hide();
-      connect(impl->diagnostic_panel, &QDockWidget::visibilityChanged, diagnostics,
-              &QAction::setChecked);
-    }
+    impl->screen_overlay = new ScreenOverlay(&impl->view);
+    impl->screen_overlay->hide();
+    impl->diagnostic_text = new QTextEdit(&impl->view);
+    impl->diagnostic_text->setObjectName("OpenAxisDiagnosticsOverlay");
+    impl->diagnostic_text->setReadOnly(true);
+    impl->diagnostic_text->setFocusPolicy(Qt::NoFocus);
+    impl->diagnostic_text->setLineWrapMode(QTextEdit::WidgetWidth);
+    impl->diagnostic_text->setStyleSheet(
+      "QTextEdit { background: rgba(24, 24, 24, 220); color: white; border: none; }");
+    impl->diagnostic_text->hide();
     if (auto menu = impl->view.window()->findChild<QMenu *>("menu_View")) {
       menu->addSeparator();
       menu->addAction(navigation);
@@ -492,7 +477,10 @@ OpenAxisController::OpenAxisController(QGLView& v) : QObject(&v), impl(std::make
   });
   connect(diagnostics, &QAction::toggled, this, [this](bool checked) {
     impl->visible = checked;
-    if (impl->diagnostic_panel) impl->diagnostic_panel->setVisible(checked);
+    if (!checked) {
+      if (impl->screen_overlay) impl->screen_overlay->hide();
+      if (impl->diagnostic_text) impl->diagnostic_text->hide();
+    }
     impl->refresh();
     impl->view.update();
   });

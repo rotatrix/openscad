@@ -150,3 +150,22 @@ Artifact availability and nonzero size were verified. Native interactive picking
 diagnostic readability/colors/geometry and device acceptance remain pending;
 these checks are not established by the successful builds or camera math tests.
 Build monitoring is disabled after completing this CI review.
+
+### Follow-up: diagnostic GL isolation and viewport text
+
+macOS user testing found incorrect CSG depth ordering after diagnostics opened.
+Review found the GL state guard ended before QPainter painted screen markers
+onto QOpenGLWidget. That painter uses Qt's GL engine and can alter state consumed
+by the next native render. Screen markers now paint on a mouse-transparent raster
+QWidget child; text uses a separate raster QTextEdit child. Neither screen layer
+paints into the native GL framebuffer. World segments and pivots retain their
+existing guarded GL rendering. The shared screen renderer has an offscreen Qt
+regression test for rendering without a GL context, marker placement and cleanup.
+This does not substitute for macOS native OpenCSG ordering acceptance.
+
+The earlier dock was an implementation choice for overflow, not a host limitation
+or user-requested UI. It has been removed. Text is again over the viewport, with
+semantic colors, word wrapping and scrolling, bounded to 460 pixels wide and
+one-third viewport height (maximum 220 pixels). It preserves scroll position and
+does not change camera aspect. Screen marker positions remain unchanged.
+Compilation, the new raster test and native macOS visual verification are pending.
