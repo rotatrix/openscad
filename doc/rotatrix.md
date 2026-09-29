@@ -69,3 +69,24 @@ only preview-manifold_minkowski3-erosion failed in the upstream run. This is not
 sufficient evidence to declare zero regressions. Focused ARM64 reruns repeat
 failing cases up to three times to identify intermittent rendering differences;
 reproducible failures still fail CI. Neither run validates physical-device input.
+
+### ARM64 final build evidence
+
+OpenAxis retry: https://github.com/rotatrix/openscad/actions/runs/36621126174
+Upstream retry: https://github.com/rotatrix/openscad/actions/runs/36621129467
+Native OpenAxis DMG (10-day retention):
+https://github.com/rotatrix/openscad/actions/runs/36621126174/artifacts/11059646213
+
+The final package passed all bundled Mach-O ARM64 architecture checks, native
+packaged STL export and DMG integrity verification. The full suite is NOT green:
+27 tests still failed after up to three attempts. Every one of these test names
+also failed in at least one of the two exact upstream-source comparison runs.
+The latest upstream run failed 26; preview-manifold_rotate_extrude-hole passed
+there after failing in the earlier upstream run. The earlier OpenAxis-only
+highlight-modifier failure did not recur. This demonstrates inherited failures
+and run variability, not proof of identical images or complete GUI correctness.
+
+Automatic retries are stopped because repeated full builds have established the
+upstream failure overlap. No failing test has been excluded to produce a green
+status. ARM64 is available as a development test package; complete rendering and
+physical-device acceptance remain outstanding before maintained release promotion.
