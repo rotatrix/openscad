@@ -21,3 +21,33 @@ remain required before promotion to a maintained branch.
 macOS CI reuses installed Homebrew dependencies and skips ccache because the
 upstream build explicitly sets USE_CCACHE=OFF. This avoids rebuilding LLVM/Rust
 for an unused build cache on Intel runners. Application features remain enabled.
+
+## Verified CI results (2026-09-29)
+
+The application source is unchanged after e5c3de8cf41efcde5e2d90c85f52ab0421e06177;
+subsequent commits repair only platform CI/package setup and documentation.
+
+- Linux release build matrix (GUI/headless, tests on/off, Manifold on/off):
+  https://github.com/rotatrix/openscad/actions/runs/36521060240
+- Linux experimental tests (Ubuntu 22.04 Qt5, Ubuntu 24.04 Qt5/Qt6):
+  https://github.com/rotatrix/openscad/actions/runs/36521060237
+- Linux release tests: https://github.com/rotatrix/openscad/actions/runs/36521060209
+- Linux example tests: https://github.com/rotatrix/openscad/actions/runs/36521060224
+- Windows Qt6 passing job (the original Qt5 packaging failure was retried separately):
+  https://github.com/rotatrix/openscad/actions/runs/36521060102/job/109253792226
+- Windows Qt5 passing focused retry:
+  https://github.com/rotatrix/openscad/actions/runs/36526929476
+- macOS Intel Qt6 (2694 tests passed, including openaxis_camera):
+  https://github.com/rotatrix/openscad/actions/runs/36529386196
+
+Packages (10-day retention):
+- Ubuntu 24.04 amd64 DEB: https://github.com/rotatrix/openscad/actions/runs/36521060237/artifacts/11013334404
+- Windows Qt6: https://github.com/rotatrix/openscad/actions/runs/36521060102/artifacts/11013213825
+- Windows Qt5: https://github.com/rotatrix/openscad/actions/runs/36526929476/artifacts/11015727395
+- macOS Intel DMG: https://github.com/rotatrix/openscad/actions/runs/36529386196/artifacts/11017190355
+
+Downloaded Windows Qt5 and Qt6 packages each exported a cube to STL successfully.
+The Linux DEB was inspected for its executable, resources and runtime dependencies;
+the macOS DMG download was checked for a valid UDIF trailer. Neither package was
+launched locally on its target OS. Physical-device navigation and interactive GUI
+acceptance remain unverified; these are test builds, not signed release claims.
