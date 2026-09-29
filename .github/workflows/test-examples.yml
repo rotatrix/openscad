@@ -3,7 +3,9 @@ name: Linux Examples Tests
 on:
   push:
     branches:
-      - master
+      - 'rotatrix/**'
+  pull_request:
+    branches: ['rotatrix/*']
   workflow_dispatch:
 
 jobs:
@@ -11,7 +13,7 @@ jobs:
     strategy:
       matrix:
         experimental: [false]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     name: Test examples - ${{ matrix.experimental && 'experimental' || 'non-experimental' }}
     steps:
     - uses: actions/checkout@v7
@@ -30,7 +32,8 @@ jobs:
       uses: actions/upload-artifact@v7
       if: ${{ always() }}
       with:
-        name: Test Result Report (Test examples ${{ matrix.experimental && 'experimental' || 'non-experimental' }})
+        name: Test Result Report (Test examples ${{ matrix.experimental && 'experimental' || 'non-experimental' }})-${{ github.sha }}
+        retention-days: 10
         path: |
           b/Testing/Temporary/*_report.html
           b/Testing/Temporary/LastTest.log

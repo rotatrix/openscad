@@ -3,13 +3,15 @@ name: Linux Release Tests
 on:
   push:
     branches:
-      - master
+      - 'rotatrix/**'
       - "*-non-experimental"
+  pull_request:
+    branches: ['rotatrix/*']
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     name: Non-experimental
 
     steps:
@@ -31,12 +33,14 @@ jobs:
       uses: actions/upload-artifact@v7
       if: ${{ always() }}
       with:
-        name: Test Result Report (non-experimental)
+        name: Test Result Report (non-experimental)-${{ github.sha }}
+        retention-days: 10
         path: |
           b/Testing/Temporary/*_report.html
           b/Testing/Temporary/LastTest.log
     - name: Upload Code Coverage Report
       uses: actions/upload-artifact@v7
       with:
-        name: Code Coverage Report (non-experimental)
+        name: Code Coverage Report (non-experimental)-${{ github.sha }}
+        retention-days: 10
         path: c/coverage*.html

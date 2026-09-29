@@ -3,8 +3,9 @@ name: Linux Experimental Tests
 on:
   push:
     branches:
-      - master
+      - 'rotatrix/**'
   pull_request:
+    branches: ['rotatrix/*']
   workflow_dispatch:
 
 jobs:
@@ -51,12 +52,14 @@ jobs:
       uses: actions/upload-artifact@v7
       if: ${{ always() }}
       with:
-        name: Test Result Report (${{ matrix.os }} ${{ matrix.qt }})
+        name: Test Result Report (${{ matrix.os }} ${{ matrix.qt }})-${{ github.sha }}
+        retention-days: 10
         path: |
           b/Testing/Temporary/*_report.html
           b/Testing/Temporary/LastTest.log
     - name: Upload Code Coverage Report
       uses: actions/upload-artifact@v7
       with:
-        name: Code Coverage Report (${{ matrix.os }} ${{ matrix.qt }})
+        name: Code Coverage Report (${{ matrix.os }} ${{ matrix.qt }})-${{ github.sha }}
+        retention-days: 10
         path: c/coverage*.html

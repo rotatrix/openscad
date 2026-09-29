@@ -3,7 +3,9 @@ name: Linux Release Build
 on:
   push:
     branches:
-      - master
+      - 'rotatrix/**'
+  pull_request:
+    branches: ['rotatrix/*']
   workflow_dispatch:
 
 jobs:
@@ -11,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-latest ]
+        os: [ ubuntu-24.04 ]
         headless: [ ON, OFF ]
         enable_tests: [ ON, OFF ]
         enable_manifold: [ ON, OFF ]
@@ -32,6 +34,7 @@ jobs:
       run: >
         cmake -S . -B build -GNinja \
           -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+          -DENABLE_OPENAXIS=${{ matrix.headless == 'OFF' && 'ON' || 'OFF' }} \
           -DHEADLESS=${{ matrix.headless }} \
           -DENABLE_MANIFOLD=${{ matrix.enable_manifold }} \
           -DENABLE_TESTS=${{ matrix.enable_tests }}

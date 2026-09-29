@@ -3,8 +3,9 @@ name: Windows(msys2) Experimental Tests
 on:
   push:
     branches:
-      - master
+      - 'rotatrix/**'
   pull_request:
+    branches: ['rotatrix/*']
   workflow_dispatch:
     inputs:
       debug_enabled:
@@ -19,8 +20,8 @@ jobs:
       fail-fast: false
       matrix:
         qt: [ qt5, qt6 ]
-    runs-on: windows-latest
-    name: windows-latest ${{ matrix.qt }}
+    runs-on: windows-2022
+    name: windows-2022 ${{ matrix.qt }}
     defaults:
       run:
         shell: msys2 {0}
@@ -55,7 +56,7 @@ jobs:
       - name: Build OpenSCAD
         run: |
           mkdir build && cd build
-          cmake .. -G"Ninja" -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release -DEXPERIMENTAL=ON -DSNAPSHOT=ON -DUSE_QT6=${{ matrix.qt == 'qt6' && 'ON' || 'OFF' }}
+          cmake .. -DENABLE_OPENAXIS=ON -G"Ninja" -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release -DEXPERIMENTAL=ON -DSNAPSHOT=ON -DUSE_QT6=${{ matrix.qt == 'qt6' && 'ON' || 'OFF' }}
           cmake --build . -j4
           cmake --install . --prefix=.
       - name: Run Test Suite
@@ -69,7 +70,8 @@ jobs:
         uses: actions/upload-artifact@v7
         if: ${{ always() }}
         with:
-          name: Test Result Report (Windows ${{ matrix.qt }})
+          name: Test Result Report (Windows ${{ matrix.qt }})-${{ github.sha }}
+          retention-days: 10
           path: |
             build/Testing/Temporary/*_report.html
             build/Testing/Temporary/LastTest.log
