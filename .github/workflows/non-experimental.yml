@@ -33,7 +33,7 @@ jobs:
       uses: actions/upload-artifact@v7
       if: ${{ always() }}
       with:
-        name: Test Result Report (non-experimental)-${{ github.sha }}
+        name: Test Result Report (non-experimental)-${{ github.sha }}
         retention-days: 10
         path: |
           b/Testing/Temporary/*_report.html
@@ -41,6 +41,6 @@ jobs:
     - name: Upload Code Coverage Report
       uses: actions/upload-artifact@v7
       with:
-        name: Code Coverage Report (non-experimental)-${{ github.sha }}
+        name: Code Coverage Report (non-experimental)-${{ github.sha }}
         retention-days: 10
         path: c/coverage*.html

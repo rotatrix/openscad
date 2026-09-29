@@ -52,7 +52,7 @@ jobs:
       uses: actions/upload-artifact@v7
       if: ${{ always() }}
       with:
-        name: Test Result Report (${{ matrix.os }} ${{ matrix.qt }})-${{ github.sha }}
+        name: Test Result Report (${{ matrix.os }} ${{ matrix.qt }})-${{ github.sha }}
         retention-days: 10
         path: |
           b/Testing/Temporary/*_report.html
@@ -60,6 +60,6 @@ jobs:
     - name: Upload Code Coverage Report
       uses: actions/upload-artifact@v7
       with:
-        name: Code Coverage Report (${{ matrix.os }} ${{ matrix.qt }})-${{ github.sha }}
+        name: Code Coverage Report (${{ matrix.os }} ${{ matrix.qt }})-${{ github.sha }}
         retention-days: 10
         path: c/coverage*.html

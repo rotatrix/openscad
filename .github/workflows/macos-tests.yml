@@ -76,7 +76,7 @@ jobs:
       uses: actions/upload-artifact@v7
       if: ${{ always() }}
       with:
-        name: Test Result Report (MacOS ${{ matrix.qt }})-${{ github.sha }}
+        name: Test Result Report (MacOS ${{ matrix.qt }})-${{ github.sha }}
         retention-days: 10
         path: |
           build/Testing/Temporary/*_report.html

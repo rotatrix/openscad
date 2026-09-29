@@ -32,7 +32,7 @@ jobs:
       uses: actions/upload-artifact@v7
       if: ${{ always() }}
       with:
-        name: Test Result Report (Test examples ${{ matrix.experimental && 'experimental' || 'non-experimental' }})-${{ github.sha }}
+        name: Test Result Report (Test examples ${{ matrix.experimental && 'experimental' || 'non-experimental' }})-${{ github.sha }}
         retention-days: 10
         path: |
           b/Testing/Temporary/*_report.html
