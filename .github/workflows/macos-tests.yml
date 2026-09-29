@@ -8,6 +8,11 @@ on:
     branches: ['rotatrix/*']
   workflow_dispatch:
     inputs:
+      architecture:
+        type: choice
+        description: Architecture for a focused retry
+        options: [all, arm64, x86_64]
+        default: all
       debug_enabled:
         type: boolean
         description: 'Run the build with ssh debugging enabled'
@@ -15,23 +20,17 @@ on:
         default: false
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.architecture || 'all' }}
   cancel-in-progress: true
 
 jobs:
   build_and_test:
     strategy:
+      fail-fast: false
       matrix:
-        os: [macos-15-intel, macos-latest]
-        qt: [qt5, qt6]
-        exclude:
-          # macos-latest runs on arm64, which has a broken SW renderer
-          - os: macos-latest
-          # QScintilla for qt5 is not longer available on Homebrew, and
-          # it's too much work to keep that running.
-          - qt: qt5
+        include: ${{ fromJSON(inputs.architecture == 'arm64' && '[{"os":"macos-15","arch":"arm64","qt":"qt6"}]' || inputs.architecture == 'x86_64' && '[{"os":"macos-15-intel","arch":"x86_64","qt":"qt6"}]' || '[{"os":"macos-15-intel","arch":"x86_64","qt":"qt6"},{"os":"macos-15","arch":"arm64","qt":"qt6"}]') }}
     runs-on:  ${{ matrix.os }}
-    name: ${{ matrix.os }} ${{ matrix.qt }}
+    name: ${{ matrix.os }} ${{ matrix.arch }} ${{ matrix.qt }}
     # If it's not done in 90 minutes, something is wrong.
     # Default is 6 hours, which is a bit long to wait.
     timeout-minutes: 90
@@ -67,15 +66,29 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake .. -DENABLE_OPENAXIS=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_UNITY_BUILD=OFF -DEXPERIMENTAL=ON -DSNAPSHOT=ON -DUSE_CCACHE=OFF -DUSE_BUILTIN_OPENCSG=ON $CMAKE_OPTIONS
+        cmake .. -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} -DENABLE_OPENAXIS=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_UNITY_BUILD=OFF -DEXPERIMENTAL=ON -DSNAPSHOT=ON -DUSE_CCACHE=OFF -DUSE_BUILTIN_OPENCSG=ON $CMAKE_OPTIONS
         export NUMCPU=$(($(sysctl -n hw.ncpu) * 3 / 2))
         make -j$NUMCPU
     - name: Package macOS test build
       run: |
         "$(brew --prefix qt)/bin/macdeployqt" build/OpenSCAD.app -dmg
+    - name: Verify native package
+      run: |
+        test "$(uname -m)" = '${{ matrix.arch }}'
+        app=build/OpenSCAD.app
+        while IFS= read -r -d '' binary; do
+          if file -b "$binary" | grep -q 'Mach-O'; then
+            lipo -verify_arch '${{ matrix.arch }}' "$binary"
+          fi
+        done < <(find "$app" -type f -print0)
+        "$app/Contents/MacOS/OpenSCAD" --version
+        printf 'cube([10,20,30]);\n' > build/package-smoke.scad
+        "$app/Contents/MacOS/OpenSCAD" -o build/package-smoke.stl build/package-smoke.scad
+        test -s build/package-smoke.stl
+        hdiutil verify build/OpenSCAD.dmg
     - uses: actions/upload-artifact@v7
       with:
-        name: openscad-macos-${{ matrix.qt }}-${{ github.sha }}
+        name: openscad-macos-${{ matrix.arch }}-${{ matrix.qt }}-${{ github.sha }}
         path: build/OpenSCAD.dmg
         retention-days: 10
         if-no-files-found: error
@@ -90,7 +103,7 @@ jobs:
       uses: actions/upload-artifact@v7
       if: ${{ always() }}
       with:
-        name: Test Result Report (MacOS ${{ matrix.qt }})-${{ github.sha }}
+        name: Test Result Report (MacOS ${{ matrix.arch }} ${{ matrix.qt }})-${{ github.sha }}
         retention-days: 10
         path: |
           build/Testing/Temporary/*_report.html

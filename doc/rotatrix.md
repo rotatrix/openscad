@@ -51,3 +51,10 @@ The Linux DEB was inspected for its executable, resources and runtime dependenci
 the macOS DMG download was checked for a valid UDIF trailer. Neither package was
 launched locally on its target OS. Physical-device navigation and interactive GUI
 acceptance remain unverified; these are test builds, not signed release claims.
+
+## Apple Silicon coverage
+The inherited upstream matrix excluded ARM64 due to a software-renderer concern.
+Rotatrix now includes native macos-15 ARM64 alongside macos-15-intel x86_64.
+Both run the same tests, with only the existing upstream PDF-font exclusion.
+Packages must pass architecture checks for every Mach-O file, a native STL export,
+and DMG integrity verification. ARM64 validation is pending its first CI run.
