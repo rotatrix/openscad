@@ -3,12 +3,14 @@
 #include <memory>
 class QGLView;
 // Owned by the viewport; all scene access happens on the Qt event loop.
-class OpenAxisController : public QObject {
+class OpenAxisController : public QObject
+{
 public:
-  explicit OpenAxisController(QGLView &view);
+  explicit OpenAxisController(QGLView& view);
   ~OpenAxisController() override;
   void refresh();
   void draw();
+
 private:
   bool eventFilter(QObject *, QEvent *) override;
   struct Impl;

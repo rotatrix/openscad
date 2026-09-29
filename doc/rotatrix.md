@@ -10,7 +10,7 @@ The previous rotatrix/work/openscad-2021.01 branch is abandoned and unmonitored.
 Build with -DENABLE_OPENAXIS=ON. The feature is optional and requires a GUI.
 SDK cpp/v1.0.0-rc.1 is pinned at acc4da095cde6747556245b4b6c110c16b968b6b.
 Use -DOPENAXIS_SOURCE_DIR=/path/to/openaxis for local SDK development.
-Ctrl+Shift+D toggles diagnostics. Navigation shares the native camera and
+The View menu provides OpenAxis Navigation and OpenAxis Diagnostics toggles. Navigation shares the native camera and
 invalidates gestures on scene replacement, focus loss or viewport changes.
 
 The upstream nightly's platform matrices, dependencies and build commands are
