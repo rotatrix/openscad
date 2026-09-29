@@ -1,0 +1,15 @@
+cmake_minimum_required(VERSION 3.24)
+project(OpenAxisCameraChecks LANGUAGES CXX)
+include(FetchContent)
+FetchContent_Declare(eigen URL https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.gz
+  URL_HASH SHA256=8586084f71f9bde545ee7fa6d00288b264a2b7ac3607b974e54d13e7162c1c72
+  SOURCE_SUBDIR unused)
+FetchContent_MakeAvailable(eigen)
+if(NOT OPENAXIS_SOURCE_DIR)
+  message(FATAL_ERROR "Set OPENAXIS_SOURCE_DIR to the SDK checkout")
+endif()
+add_executable(OpenAxisCameraTests camera.cc)
+target_compile_features(OpenAxisCameraTests PRIVATE cxx_std_17)
+target_include_directories(OpenAxisCameraTests PRIVATE ../../src "${eigen_SOURCE_DIR}" "${OPENAXIS_SOURCE_DIR}/cpp/include")
+enable_testing()
+add_test(NAME openaxis_camera COMMAND OpenAxisCameraTests)

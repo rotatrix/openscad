@@ -59,6 +59,22 @@ jobs:
           cmake .. -DENABLE_OPENAXIS=ON -G"Ninja" -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release -DEXPERIMENTAL=ON -DSNAPSHOT=ON -DUSE_QT6=${{ matrix.qt == 'qt6' && 'ON' || 'OFF' }}
           cmake --build . -j4
           cmake --install . --prefix=.
+      - name: Package Windows test build
+        run: |
+          cmake --install build --prefix "$PWD/package"
+          if [ '${{ matrix.qt }}' = qt6 ]; then
+            /ucrt64/bin/windeployqt6 --release --compiler-runtime package/openscad.exe
+          else
+            /ucrt64/bin/windeployqt --release --compiler-runtime package/openscad.exe
+          fi
+          ldd build/openscad.exe | awk '/\/ucrt64\// {print $3}' | xargs -r -I{} cp '{}' package/
+          test -f package/openscad.exe
+      - uses: actions/upload-artifact@v7
+        with:
+          name: openscad-windows-${{ matrix.qt }}-${{ github.sha }}
+          path: package/
+          retention-days: 10
+          if-no-files-found: error
       - name: Run Test Suite
         run: |
           cd build

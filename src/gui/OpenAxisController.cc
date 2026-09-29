@@ -1,32 +1,23 @@
 #include "gui/QGLView.h"
 #include "gui/OpenAxisController.h"
+#include "gui/OpenAxisCamera.h"
 #include <QApplication>
 #include <QAction>
 #include <QCursor>
 #include <QPainter>
 #include <QTimer>
+#pragma push_macro("emit")
+#undef emit
 #include <openaxis/navigation.hpp>
 #include <openaxis/connection_manager.hpp>
 #include <openaxis/logging.hpp>
+#pragma pop_macro("emit")
 #include <algorithm>
 #include <cmath>
 #include <limits>
 
 namespace {
-constexpr double radians = 3.14159265358979323846 / 180.;
-openaxis::Vec3 vec(const Eigen::Vector3d &v) { return {v.x(), v.y(), v.z()}; }
-Eigen::Vector3d vec(openaxis::Vec3 v) { return {v.x, v.y, v.z}; }
-Eigen::Matrix3d rotation(const Camera &c) {
-  return (Eigen::AngleAxisd(c.object_rot.x() * radians, Eigen::Vector3d::UnitX()) *
-          Eigen::AngleAxisd(c.object_rot.y() * radians, Eigen::Vector3d::UnitY()) *
-          Eigen::AngleAxisd(c.object_rot.z() * radians, Eigen::Vector3d::UnitZ())).toRotationMatrix();
-}
-// OpenGL's look-at frame for eye=(0,-distance,0), up=(0,0,1).
-Eigen::Matrix3d base() {
-  Eigen::Matrix3d r;
-  r << 1,0,0, 0,0,1, 0,-1,0;
-  return r;
-}
+using namespace OpenAxisCamera;
 class Scheduler : public QObject, public openaxis::Scheduler {
 public:
   std::function<void()> before;
@@ -96,7 +87,7 @@ struct OpenAxisController::Impl : openaxis::NavigationAdapter {
       std::to_string(view.devicePixelRatioF());
   }
   void remember() {
-    last_rotation = rotation(view.cam); last_translation = view.cam.object_trans;
+    last_rotation = rotation(view.cam.object_rot); last_translation = view.cam.object_trans;
     last_distance = view.cam.zoomValue(); last_fov = view.cam.fov;
     last_projection = view.cam.projection;
   }
@@ -108,7 +99,7 @@ struct OpenAxisController::Impl : openaxis::NavigationAdapter {
     }
     context = next_context;
     if (next != focused) { focused = next; connection.refresh_metadata(); }
-    bool changed = !last_rotation.isApprox(rotation(view.cam)) ||
+    bool changed = !last_rotation.isApprox(rotation(view.cam.object_rot)) ||
       !last_translation.isApprox(view.cam.object_trans) || last_distance != view.cam.zoomValue() ||
       last_fov != view.cam.fov || last_projection != view.cam.projection;
     remember();
@@ -118,13 +109,8 @@ struct OpenAxisController::Impl : openaxis::NavigationAdapter {
   }
   openaxis::Pose pose() const {
     const auto &c = view.cam;
-    Eigen::Matrix3d world = rotation(c).transpose() * base().transpose();
-    auto q = openaxis::Quat::from_basis(vec(world.col(0)), vec(world.col(1)), vec(world.col(2)));
-    Eigen::Vector3d eye = -c.object_trans + world.col(2) * c.zoomValue();
-    openaxis::Pose p{vec(eye), q.rotvec()};
-    if (c.projection == Camera::ProjectionType::PERSPECTIVE) p.fov = c.fov * radians;
-    else p.ortho_extent = 2 * c.zoomValue() * std::tan(c.fov * radians / 2);
-    return p;
+    return OpenAxisCamera::read(c.object_rot, c.object_trans, c.zoomValue(), c.fov,
+                               c.projection == Camera::ProjectionType::PERSPECTIVE);
   }
   openaxis::NavigationContext capture_context() override {
     refresh();
@@ -154,17 +140,8 @@ struct OpenAxisController::Impl : openaxis::NavigationAdapter {
   openaxis::WriteResult apply_pose(const openaxis::NavigationContext &c, const openaxis::NavigationPose &p,
                                   const openaxis::Value &, std::optional<openaxis::Vec3>) override {
     if (!is_current(c)) return {};
-    auto q = openaxis::Quat::from_rotvec(p.r);
-    Eigen::Matrix3d world;
-    world.col(0) = vec(q.rotate({1,0,0})); world.col(1) = vec(q.rotate({0,1,0})); world.col(2) = vec(q.rotate({0,0,1}));
-    double distance = view.cam.zoomValue();
-    double fov = view.cam.fov;
-    if (p.fov > 0) fov = p.fov / radians;
-    else distance = p.ortho_extent / (2 * std::tan(fov * radians / 2));
-    if (!std::isfinite(distance) || distance <= 0 || !std::isfinite(fov) || fov <= 0 || fov >= 180 ||
-        !vec(p.t).allFinite() || !world.allFinite()) return {};
-    view.cam.object_rot = (base().transpose() * world.transpose()).eulerAngles(0,1,2) / radians;
-    view.cam.object_trans = -(vec(p.t) - world.col(2) * distance);
+    double distance = view.cam.zoomValue(), fov = view.cam.fov;
+    if (!OpenAxisCamera::write(p, view.cam.object_rot, view.cam.object_trans, distance, fov)) return {};
     view.cam.setVpd(distance); view.cam.setVpf(fov);
     view.cam.setProjection(p.fov > 0 ? Camera::ProjectionType::PERSPECTIVE : Camera::ProjectionType::ORTHOGONAL);
     remember(); view.update(); emit view.cameraChanged();

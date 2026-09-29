@@ -38,10 +38,27 @@ jobs:
     - uses: astral-sh/setup-uv@v7
       with:
         python-version: '3.13'
+    - name: Install SDK-compatible CMake on Ubuntu 22.04
+      if: matrix.os == 'ubuntu-22.04'
+      run: |
+        uv tool install cmake==3.31.6
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
     - name: Install gcovr
       run: uv sync --project .github/ci/openscad-coverage
     - name: Build
       run: ./scripts/github-ci.sh experimental enable_python ${{ matrix.qt }} build
+    - name: Package Ubuntu test build
+      if: matrix.os == 'ubuntu-24.04' && matrix.qt == 'qt6'
+      run: |
+        cd b
+        cpack -G DEB -D CPACK_DEBIAN_PACKAGE_MAINTAINER=Rotatrix -D CPACK_DEBIAN_PACKAGE_SHLIBDEPS=ON
+    - uses: actions/upload-artifact@v7
+      if: matrix.os == 'ubuntu-24.04' && matrix.qt == 'qt6'
+      with:
+        name: openscad-ubuntu-24.04-qt6-${{ github.sha }}
+        path: b/*.deb
+        retention-days: 10
+        if-no-files-found: error
     - name: Test
       # This is a bit wonky to use github-ci as it is.
       # `test` runs ctest, `test_examples` sets a persistent flag for ctest to run a different "configuration".
