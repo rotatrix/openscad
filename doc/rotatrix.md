@@ -128,3 +128,25 @@ and off, high DPI, portrait/landscape windows, colored multiline labels, scrolla
 rows in narrow docks, native camera movement, partially occluded pivots, and
 cleanup after disconnect, disable, scene replacement and window close. Prior CI
 and camera-math tests do not establish these rendering checks.
+
+### Repair CI results
+
+Repair source: a68c7e3211d700309a5711e00d0d2ca67b397aa6.
+Linux release matrix (36626029977), release tests (36626029852), examples
+(36626029480), all experimental Linux jobs (36626029782), Windows Qt5/Qt6
+(36626029804), and Intel macOS (job 109603106175 in 36626029648) passed.
+ARM64 compiled, packaged and passed native architecture/export/DMG checks;
+2672 of 2694 tests passed, including openaxis_camera. Its 22 failing image tests
+are a subset of the documented upstream failure baseline. ARM64 CI is not green.
+
+Repair packages (10-day artifact retention):
+- ARM64 macOS: https://github.com/rotatrix/openscad/actions/runs/36626029648/artifacts/11060838738
+- Intel macOS: https://github.com/rotatrix/openscad/actions/runs/36626029648/artifacts/11061707268
+- Windows Qt6: https://github.com/rotatrix/openscad/actions/runs/36626029804/artifacts/11061303949
+- Windows Qt5: https://github.com/rotatrix/openscad/actions/runs/36626029804/artifacts/11061906821
+- Ubuntu 24.04 Qt6: https://github.com/rotatrix/openscad/actions/runs/36626029782/artifacts/11061228943
+
+Artifact availability and nonzero size were verified. Native interactive picking,
+diagnostic readability/colors/geometry and device acceptance remain pending;
+these checks are not established by the successful builds or camera math tests.
+Build monitoring is disabled after completing this CI review.
