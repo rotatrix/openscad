@@ -1,0 +1,36 @@
+name: ARM64 package rendering comparison
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  compare:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Download existing repair and upstream packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download 36645322980 --repo rotatrix/openscad --name openscad-macos-arm64-qt6-d4bf8a711b4b58040f3bc3ebf9f75d1cbcfb883f --dir packages/repair
+          gh run download 36647981385 --repo rotatrix/openscad --name openscad-macos-arm64-qt6-d4bf8a711b4b58040f3bc3ebf9f75d1cbcfb883f-upstream-baseline --dir packages/upstream
+          for variant in repair upstream; do
+            mkdir -p "packages/$variant/mount"
+            hdiutil attach "packages/$variant/OpenSCAD.dmg" -nobrowse -readonly -mountpoint "$PWD/packages/$variant/mount"
+            ditto "packages/$variant/mount/OpenSCAD.app" "packages/$variant/OpenSCAD.app"
+            hdiutil detach "packages/$variant/mount"
+          done
+      - name: Compare repeated renders on the same native runner
+        run: |
+          python3 -m venv comparison-venv
+          comparison-venv/bin/pip install pillow numpy
+          mkdir -p comparison
+          comparison-venv/bin/python tests/openaxis/compare-packages.py 2>&1 | tee comparison/log.txt
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: arm64-package-comparison-${{ github.sha }}
+          path: comparison/
+          retention-days: 10
