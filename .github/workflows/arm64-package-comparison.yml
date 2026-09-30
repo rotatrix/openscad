@@ -25,6 +25,7 @@ jobs:
           done
       - name: Compare repeated renders on the same native runner
         run: |
+          set -o pipefail
           python3 -m venv comparison-venv
           comparison-venv/bin/pip install pillow numpy
           mkdir -p comparison

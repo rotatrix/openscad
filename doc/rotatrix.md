@@ -169,3 +169,33 @@ semantic colors, word wrapping and scrolling, bounded to 460 pixels wide and
 one-third viewport height (maximum 220 pixels). It preserves scroll position and
 does not change camera aspect. Screen marker positions remain unchanged.
 Compilation, the new raster test and native macOS visual verification are pending.
+
+### GL-isolation repair validation (2026-09-30)
+
+Application source d4bf8a711b4b58040f3bc3ebf9f75d1cbcfb883f passed Linux release
+matrix (36645322939), release tests (36645323021), examples (36645323012), Linux
+experimental tests (36645323005), Windows Qt5/Qt6 (36645323093), and Intel macOS
+(job 109666828592 in 36645322980). ARM64 package architecture/export/DMG checks
+passed; openaxis_camera and openaxis_overlay passed. Its full suite retained 26
+image failures out of 2695 tests, including an additional openscad-cameye case.
+
+The additional camera case passed the upstream full suite (36647981385), then
+reproduced intermittently in BOTH existing packages on one ARM64 runner
+(36650581496): upstream passed the reference on 3/5 attempts, repair on 2/5.
+Only 1/5 paired renders matched under the upstream comparator. This establishes
+upstream reproduction and nondeterminism, not pixel equivalence or no regressions.
+The diagnostic workflow initially reported success because tee masked Python's
+nonzero exit; pipefail is now explicit. Raw comparison results, not that green
+workflow status, are the evidence. No tolerance or image baseline was changed.
+
+Latest repair packages (10-day retention):
+- ARM64 macOS: https://github.com/rotatrix/openscad/actions/runs/36645322980/artifacts/11068309570
+- Intel macOS: https://github.com/rotatrix/openscad/actions/runs/36645322980/artifacts/11068898795
+- Windows Qt6: https://github.com/rotatrix/openscad/actions/runs/36645323093/artifacts/11069596923
+- Windows Qt5: https://github.com/rotatrix/openscad/actions/runs/36645323093/artifacts/11069290945
+- Ubuntu: https://github.com/rotatrix/openscad/actions/runs/36645323005/artifacts/11069530481
+
+Build verification is finished and monitoring stopped. Interactive CSG depth
+ordering after diagnostic toggling, viewport text readability, picking and
+physical-device acceptance remain outstanding; the raster test does not exercise
+native OpenCSG rendering. ARM64 full CI remains failing as documented above.
