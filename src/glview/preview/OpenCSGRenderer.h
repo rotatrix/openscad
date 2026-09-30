@@ -14,6 +14,7 @@
 
 #include "glview/VBORenderer.h"
 
+#include <array>
 #include <cstddef>
 #include <string>
 #include <vector>
@@ -89,6 +90,12 @@ public:
   void draw(bool showedges, const ShaderUtils::ShaderInfo *shaderinfo = nullptr) const override;
 
   BoundingBox getBoundingBox() const override;
+  // Rendered root, highlight and background products, used to map picked leaf
+  // indices back to their CSG products.
+  [[nodiscard]] std::array<std::shared_ptr<CSGProducts>, 3> products() const
+  {
+    return {root_products_, highlights_products_, background_products_};
+  }
 
 private:
   void createCSGVBOProducts(const CSGProducts& products, bool highlight_mode, bool background_mode,

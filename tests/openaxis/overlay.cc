@@ -3,6 +3,7 @@
 #include <QImage>
 #include <QOpenGLContext>
 #include <iostream>
+#include <string>
 
 int main(int argc, char **argv)
 {
@@ -31,6 +32,30 @@ int main(int argc, char **argv)
   image.fill(Qt::transparent);
   overlay.render(&image, QPoint(), QRegion(), QWidget::DrawChildren);
   if (qAlpha(image.pixel(100, 60)) != 0) return 6;
-  std::cout << "Raster overlay, multiline/edge markers and cleanup passed\n";
+
+  // Text rows are painted in the viewport, flow into further columns and
+  // report rows that do not fit instead of dropping them silently.
+  const auto painted = [&](int x0, int y0, int x1, int y1) {
+    image.fill(Qt::transparent);
+    overlay.render(&image, QPoint(), QRegion(), QWidget::DrawChildren);
+    for (int y = y0; y < y1; ++y)
+      for (int x = x0; x < x1; ++x)
+        if (qAlpha(image.pixel(x, y))) return true;
+    return false;
+  };
+  // 900 px wide: 420 px columns at x=8 and x=436; the second is the last.
+  overlay.resize(900, 120);
+  image = QImage(overlay.size(), QImage::Format_ARGB32_Premultiplied);
+  overlay.status = "OpenAxis: ready | Focused";
+  overlay.lines.push_back({"pick.cursor hit", name});
+  if (!painted(8, 8, 60, 30)) return 7;
+  if (painted(300, 0, 900, 120)) return 8;  // Backdrop covers only the text.
+  for (int i = 0; i < 40; ++i) overlay.lines.push_back({"row " + std::to_string(i), name});
+  if (!painted(436, 8, 480, 30)) return 9;  // Rows flow into a second column.
+  if (painted(870, 0, 900, 120)) return 11;  // No third column.
+  overlay.status.clear();
+  overlay.lines.clear();
+  if (painted(0, 0, overlay.width(), overlay.height())) return 10;
+  std::cout << "Raster overlay, text rows, multiline/edge markers and cleanup passed\n";
   return 0;
 }

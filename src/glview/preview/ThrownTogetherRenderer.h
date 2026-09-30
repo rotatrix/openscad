@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstddef>
 #include <memory>
 #include <vector>
@@ -63,6 +64,12 @@ public:
   void draw(bool showedges, const ShaderUtils::ShaderInfo *shaderinfo = nullptr) const override;
 
   BoundingBox getBoundingBox() const override;
+  // Rendered root, highlight and background products, used to map picked leaf
+  // indices back to their CSG products.
+  [[nodiscard]] std::array<std::shared_ptr<CSGProducts>, 3> products() const
+  {
+    return {root_products_, highlight_products_, background_products_};
+  }
 
 private:
   void renderCSGProducts(const std::shared_ptr<CSGProducts>& products, bool showedges = false,

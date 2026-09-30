@@ -1,9 +1,13 @@
 #pragma once
 #include <Eigen/Geometry>
 #include <openaxis/geometry.hpp>
+#include <openaxis/diagnostics.hpp>
+#include <cmath>
 
 namespace OpenAxisCamera {
 constexpr double radians = 3.14159265358979323846 / 180.;
+// Smallest centre depth, relative to the current distance, that write() keeps.
+constexpr double min_depth = 1e-3;
 inline openaxis::Vec3 vec(const Eigen::Vector3d& v)
 {
   return {v.x(), v.y(), v.z()};
@@ -48,15 +52,44 @@ inline bool write(const openaxis::Pose& p, Eigen::Vector3d& angles, Eigen::Vecto
   world.col(0) = vec(q.rotate({1, 0, 0}));
   world.col(1) = vec(q.rotate({0, 1, 0}));
   world.col(2) = vec(q.rotate({0, 0, 1}));
+  // OpenSCAD orbits the mouse around -translation, placed `distance` in front of
+  // the eye. Keep that centre at its previous depth on the new view axis so
+  // Rotatrix dolly and orbit do not drag the native orbit centre with the eye.
+  const Eigen::Vector3d eye = vec(p.t), back = world.col(2), centre = -translation;
   double next_fov = p.fov > 0 ? p.fov / radians : fov;
-  double next_distance = p.fov > 0 ? distance : p.ortho_extent / (2 * std::tan(next_fov * radians / 2));
+  double next_distance;
+  Eigen::Vector3d target;
+  if (p.fov > 0) {
+    // A centre at or behind the eye cannot be kept; retain the previous distance.
+    const double depth = (eye - centre).dot(back);
+    next_distance = depth > min_depth * distance ? depth : distance;
+    target = eye - back * next_distance;
+  } else {
+    // Orthographic distance sets the visible extent. The image does not depend
+    // on eye depth, so the realized eye moves axially to keep the centre's depth.
+    next_distance = p.ortho_extent / (2 * std::tan(next_fov * radians / 2));
+    target = eye - back * (eye - centre).dot(back);
+  }
   if (!std::isfinite(next_distance) || next_distance <= 0 || !std::isfinite(next_fov) || next_fov <= 0 ||
-      next_fov >= 180 || !world.allFinite())
+      next_fov >= 180 || !world.allFinite() || !target.allFinite())
     return false;
   angles = (base().transpose() * world.transpose()).eulerAngles(0, 1, 2) / radians;
-  translation = -(vec(p.t) - world.col(2) * next_distance);
+  translation = -target;
   distance = next_distance;
   fov = next_fov;
   return true;
+}
+// Orthographic writes normalize eye depth (see write). Ignore that axial
+// difference so it is not reported as a correction; view-plane movement,
+// orientation and extent are still compared.
+inline openaxis::PoseDifference compare(const openaxis::Pose& a, const openaxis::Pose& b)
+{
+  if (a.ortho_extent > 0 && b.ortho_extent > 0) {
+    const auto back = vec(openaxis::Quat::from_rotvec(a.r).rotate({0, 0, 1}));
+    openaxis::Pose aligned = a;
+    aligned.t = vec(vec(a.t) + back * (vec(b.t) - vec(a.t)).dot(back));
+    return openaxis::compare_poses(aligned, b);
+  }
+  return openaxis::compare_poses(a, b);
 }
 }  // namespace OpenAxisCamera
