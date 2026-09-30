@@ -8,6 +8,10 @@ on:
     branches: ['rotatrix/*']
   workflow_dispatch:
     inputs:
+      package_comparison:
+        type: boolean
+        description: Compare existing ARM64 packages without rebuilding
+        default: false
       architecture:
         type: choice
         description: Architecture for a focused retry
@@ -28,7 +32,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  compare_packages:
+    if: inputs.package_comparison
+    uses: ./.github/workflows/arm64-package-comparison.yml
   build_and_test:
+    if: ${{ !inputs.package_comparison }}
     strategy:
       fail-fast: false
       matrix:
