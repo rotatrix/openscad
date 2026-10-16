@@ -8,6 +8,19 @@ until the remaining acceptance checks are complete.
 
 ### Repairs and local validation
 
+- Reconnect deadlines now use precise Qt timers and re-arm if the SDK monotonic
+  deadline has not arrived. The previous default coarse timer could consume the
+  retry wakeup early and leave the connection manager stuck in `retrying`.
+  A local probe using the actual adapter scheduler reproduced 10 early callbacks
+  out of 64 before the fix, and zero early or missing callbacks after the fix.
+  Precise timers alone still produced a sub-millisecond early callback, so the
+  explicit SDK-clock guard is necessary. Device-unavailable startup recovery
+  remains a native acceptance check; SDK resilience to early hosts is separate.
+- Empty viewports now keep their OpenAxis camera context before a scene renderer
+  exists. Model bounds return null without a renderer; picking already handles
+  that case. Validate device motion in a new blank document, then preview geometry
+  and clear it again; native/device acceptance remains pending. The rebuilt local
+  Windows Qt6 app passes both camera/overlay tests and standalone STL export.
 - Fixed malformed newline character literals in `tests/openaxis/overlay.cc`.
 - Reproduced the Qt5 backdrop assertion locally with the pinned SDK. The normal
   status text measured wider under the fallback font than the test's fixed x=300
@@ -74,10 +87,16 @@ parsing. Mocked draft-publication checks cover creation, existing drafts, duplic
 assets, published releases, missing packages and invalid tags. Native packaging,
 attestation and signing have not yet run with these changes.
 
-GitHub repository Actions was enabled with permission on October 16, and the
-Windows workflow is active, but dispatch still returns HTTP 422, "Actions has been
-disabled for this repository." Organization policy cannot be inspected with the
-current token. Resolve that GitHub restriction before claiming platform results.
+GitHub Actions dispatch was restored on October 16. At revision `a20a6fe97`,
+Linux release builds (38976868009), experimental tests (38976870762),
+non-experimental tests (38976873314), and examples (38976875885) passed.
+Windows Qt5 and Qt6 (38976878417) passed compilation and their test suites but
+failed the package smoke check: PowerShell launched the GUI executable without
+waiting, leaving the exit code unset. This was reproduced locally. The check now
+uses upstream's `openscad.com` console launcher, which waits and propagates the
+exit code; local clean-PATH export returned zero with a nonempty STL.
+The Windows retry and macOS run 38976880963 remain pending. These CI results
+precede the local empty-viewport and reconnect scheduler repairs described above.
 The latest September platform runs no longer have downloadable artifacts.
 
 Remaining gates: full CI at one corrected revision; ARM64 failure qualification;

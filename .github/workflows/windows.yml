@@ -93,7 +93,8 @@ jobs:
           # Exclude the MSYS2 build toolchain from DLL lookup.
           $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
           'cube([10,20,30]);' | Set-Content package-check/smoke.scad
-          & ./package-check/openscad.exe -o package-check/smoke.stl package-check/smoke.scad
+          # The console launcher waits for the GUI executable and forwards its exit code.
+          & ./package-check/openscad.com -o package-check/smoke.stl package-check/smoke.scad
           if ($LASTEXITCODE -ne 0 -or !(Test-Path package-check/smoke.stl) -or (Get-Item package-check/smoke.stl).Length -eq 0) {
             throw 'Extracted Windows package failed STL export'
           }
