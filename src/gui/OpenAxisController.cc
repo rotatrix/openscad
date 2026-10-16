@@ -51,8 +51,14 @@ public:
   {
     QTimer::singleShot(0, this, [this, deadline, f = std::move(f)] {
       double delay = std::ceil((deadline - openaxis::diagnostic_time()) * 1000);
-      QTimer::singleShot(int(std::clamp(delay, 0., double(std::numeric_limits<int>::max()))), this,
-                         [this, f] {
+      // Coarse timers may fire early, consuming an SDK retry before it is due.
+      QTimer::singleShot(int(std::clamp(delay, 0., double(std::numeric_limits<int>::max()))), Qt::PreciseTimer, this,
+                         [this, deadline, f] {
+                           // Respect the SDK clock even across timer-clock rounding.
+                           if (openaxis::diagnostic_time() < deadline) {
+                             post_at(deadline, f);
+                             return;
+                           }
                            if (before) before();
                            f();
                          });
@@ -194,8 +200,8 @@ struct OpenAxisController::Impl : openaxis::NavigationAdapter {
   }
   bool available() const
   {
-    return view.isValid() && view.isVisible() && view.width() > 0 && view.height() > 0 &&
-           view.getRenderer();
+    // The camera is usable even before a preview creates a scene renderer.
+    return view.isValid() && view.isVisible() && view.width() > 0 && view.height() > 0;
   }
   // The navigation target is this viewport's camera. Re-rendering (preview,
   // render, view mode, animation, reload) keeps it; resizing and DPI changes
@@ -497,7 +503,9 @@ struct OpenAxisController::Impl : openaxis::NavigationAdapter {
     if (name == "viewport.cursor" && inside)
       return {{"x", 2. * cursor.x() / view.width() - 1}, {"y", 1 - 2. * cursor.y() / view.height()}};
     if (name == "model.bounds") {
-      auto b = view.getRenderer()->getBoundingBox();
+      auto *renderer = view.getRenderer();
+      if (!renderer) return nullptr;
+      auto b = renderer->getBoundingBox();
       if (b.isEmpty()) return nullptr;
       return bounds_value(b);
     }
