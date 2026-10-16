@@ -59,8 +59,10 @@ int main(int argc, char **argv)
               << ", height " << metrics.height() << '\n';
   }
   image = QImage(overlay.size(), QImage::Format_ARGB32_Premultiplied);
-  overlay.status = "OpenAxis: ready | Focused";
-  overlay.lines.push_back({"pick.cursor hit", name});
+  // Keep this fixture short: fallback fonts can make the normal status wrap
+  // beyond x=300. That is valid text layout, not an oversized backdrop.
+  overlay.status = "Ready";
+  overlay.lines.push_back({"Hit", name});
   if (!painted(8, 8, 60, 30)) return fail(7, "!painted(8, 8, 60, 30)");
   if (painted(300, 0, 900, 120)) return fail(8, "Backdrop covers only the text.");
   for (int i = 0; i < 40; ++i) overlay.lines.push_back({"row " + std::to_string(i), name});
