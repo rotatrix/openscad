@@ -9,8 +9,7 @@
 // Reports the failing check; ctest logs do not show the exit code.
 int fail(int code, const char *check)
 {
-  std::cerr << "openaxis_overlay check " << code << " failed: " << check << '
-';
+  std::cerr << "openaxis_overlay check " << code << " failed: " << check << '\n';
   return code;
 }
 
@@ -57,8 +56,7 @@ int main(int argc, char **argv)
   {
     const QFontMetrics metrics(overlay.font());
     std::cerr << "overlay font: " << overlay.font().family().toStdString()
-              << ", height " << metrics.height() << '
-';
+              << ", height " << metrics.height() << '\n';
   }
   image = QImage(overlay.size(), QImage::Format_ARGB32_Premultiplied);
   overlay.status = "OpenAxis: ready | Focused";
