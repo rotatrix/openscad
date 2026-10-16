@@ -1,6 +1,7 @@
 name: macOS Experimental Tests
 
 on:
+  workflow_call:
   push:
     branches:
       - 'rotatrix/**'
@@ -12,6 +13,12 @@ on:
         type: boolean
         description: Compare existing ARM64 packages without rebuilding
         default: false
+      repair_run:
+        type: string
+        description: OpenAxis run ID for package comparison
+      upstream_run:
+        type: string
+        description: Upstream-baseline run ID for package comparison
       architecture:
         type: choice
         description: Architecture for a focused retry
@@ -28,7 +35,7 @@ on:
         default: false
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.architecture || 'all' }}-${{ inputs.upstream_baseline || false }}
+  group: macos-${{ github.workflow }}-${{ github.ref }}-${{ inputs.architecture || 'all' }}-${{ inputs.upstream_baseline || false }}
   cancel-in-progress: true
 
 jobs:
@@ -37,37 +44,16 @@ jobs:
     permissions:
       contents: read
       actions: read
-    runs-on: macos-15
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v7
-      - name: Download existing repair and upstream packages
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh run download 36645322980 --repo rotatrix/openscad --name openscad-macos-arm64-qt6-d4bf8a711b4b58040f3bc3ebf9f75d1cbcfb883f --dir packages/repair
-          gh run download 36647981385 --repo rotatrix/openscad --name openscad-macos-arm64-qt6-d4bf8a711b4b58040f3bc3ebf9f75d1cbcfb883f-upstream-baseline --dir packages/upstream
-          for variant in repair upstream; do
-            mkdir -p "packages/$variant/mount"
-            hdiutil attach "packages/$variant/OpenSCAD.dmg" -nobrowse -readonly -mountpoint "$PWD/packages/$variant/mount"
-            ditto "packages/$variant/mount/OpenSCAD.app" "packages/$variant/OpenSCAD.app"
-            hdiutil detach "packages/$variant/mount"
-          done
-      - name: Compare repeated renders on the same native runner
-        run: |
-          set -o pipefail
-          python3 -m venv comparison-venv
-          comparison-venv/bin/pip install pillow numpy
-          mkdir -p comparison
-          comparison-venv/bin/python tests/openaxis/compare-packages.py 2>&1 | tee comparison/log.txt
-      - uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: arm64-package-comparison-${{ github.sha }}
-          path: comparison/
-          retention-days: 10
+    uses: ./.github/workflows/arm64-package-comparison.yml
+    with:
+      repair_run: ${{ inputs.repair_run }}
+      upstream_run: ${{ inputs.upstream_run }}
   build_and_test:
     if: ${{ !inputs.package_comparison }}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     strategy:
       fail-fast: false
       matrix:
@@ -117,13 +103,20 @@ jobs:
         cmake .. -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} -DENABLE_OPENAXIS=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_UNITY_BUILD=OFF -DEXPERIMENTAL=ON -DSNAPSHOT=ON -DUSE_CCACHE=OFF -DUSE_BUILTIN_OPENCSG=ON $CMAKE_OPTIONS
         export NUMCPU=$(($(sysctl -n hw.ncpu) * 3 / 2))
         make -j$NUMCPU
-    - name: Package macOS test build
+    - name: Bundle and archive macOS app
+      env:
+        PACKAGE_VARIANT: ${{ matrix.arch }}-${{ matrix.qt }}-${{ github.sha }}${{ inputs.upstream_baseline && '-upstream-baseline' || '' }}
       run: |
-        "$(brew --prefix qt)/bin/macdeployqt" build/OpenSCAD.app -dmg
+        "$(brew --prefix qt)/bin/macdeployqt" build/OpenSCAD.app -codesign=-
+        mkdir -p artifacts package-check
+        COPYFILE_DISABLE=1 tar -czf "artifacts/macos-app-$PACKAGE_VARIANT.tar.gz" -C build OpenSCAD.app
+        tar -xzf "artifacts/macos-app-$PACKAGE_VARIANT.tar.gz" -C package-check
     - name: Verify native package
       run: |
         test "$(uname -m)" = '${{ matrix.arch }}'
-        app=build/OpenSCAD.app
+        app=package-check/OpenSCAD.app
+        test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Contents/Info.plist")" = org.openscad.OpenSCAD
+        codesign --verify --deep --strict "$app"
         while IFS= read -r -d '' binary; do
           if file -b "$binary" | grep -q 'Mach-O'; then
             lipo "$binary" -verify_arch '${{ matrix.arch }}'
@@ -133,13 +126,17 @@ jobs:
         printf 'cube([10,20,30]);\n' > build/package-smoke.scad
         "$app/Contents/MacOS/OpenSCAD" -o build/package-smoke.stl build/package-smoke.scad
         test -s build/package-smoke.stl
-        hdiutil verify build/OpenSCAD.dmg
-    - uses: actions/upload-artifact@v7
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
       with:
-        name: openscad-macos-${{ matrix.arch }}-${{ matrix.qt }}-${{ github.sha }}${{ inputs.upstream_baseline && '-upstream-baseline' || '' }}
-        path: build/OpenSCAD.dmg
+        path: artifacts/macos-app-*.tar.gz
+        archive: false
         retention-days: 10
         if-no-files-found: error
+    - name: Attest release app
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+      uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661 # v3
+      with:
+        subject-path: artifacts/macos-app-*.tar.gz
     - name: Run Test Suite
       # Disable pdf export test on macOS because Cairo >= 1.18 on Homebrew uses the
       # Quartz backend which doesn't have the Liberation Sans font we use.
@@ -149,9 +146,9 @@ jobs:
         if [ '${{ matrix.arch }}' = arm64 ]; then
           # Repeat failing cases to distinguish intermittent software-renderer
           # differences from reproducible failures. No tests are excluded.
-          ctest -j$NUMCPU -E pdfexporttest --repeat until-pass:3
+          ctest -j$NUMCPU -E pdfexporttest --repeat until-pass:3 --output-on-failure
         else
-          ctest -j$NUMCPU -E pdfexporttest
+          ctest -j$NUMCPU -E pdfexporttest --output-on-failure
         fi
     - name: Upload Test Result Report
       uses: actions/upload-artifact@v7

@@ -1,6 +1,7 @@
 name: Linux Release Build
 
 on:
+  workflow_call:
   push:
     branches:
       - 'rotatrix/**'
@@ -9,7 +10,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: linux-build-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

@@ -1,0 +1,100 @@
+name: Rotatrix release
+
+on:
+  push:
+    tags: ['*-rotatrix.*']
+  # Exercise the complete release build without creating a tag or publishing.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rotatrix-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  linux:
+    uses: ./.github/workflows/linux-tests.yml
+  linux_matrix:
+    uses: ./.github/workflows/linux-build-matrix.yml
+  linux_release_tests:
+    uses: ./.github/workflows/non-experimental.yml
+  examples:
+    uses: ./.github/workflows/test-examples.yml
+  windows:
+    uses: ./.github/workflows/windows.yml
+  macos:
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/macos-tests.yml
+
+  draft:
+    needs: [linux, linux_matrix, linux_release_tests, examples, windows, macos]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: openscad-windows-*
+          path: release-assets
+          merge-multiple: true
+          digest-mismatch: error
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: openscad-ubuntu-24.04-qt6-*
+          path: release-assets
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Create draft without replacing release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, re, subprocess, hashlib
+          tag, repo = os.environ['RELEASE_TAG'], os.environ['GITHUB_REPOSITORY']
+          if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]*-rotatrix\.[1-9][0-9]*(?:-(?:alpha|beta|rc)\.[1-9][0-9]*)?', tag):
+              raise SystemExit('Invalid Rotatrix release tag')
+          directory = pathlib.Path('release-assets')
+          packages = sorted(directory.iterdir())
+          if (len(packages) != 3 or sum(p.suffix == '.zip' for p in packages) != 2
+                  or sum(p.suffix == '.deb' for p in packages) != 1):
+              raise SystemExit('Expected both Windows Qt packages and one Ubuntu DEB')
+          for package in packages:
+              package.rename(package.with_name(f'{tag}-{package.name}'))
+          packages = sorted(directory.iterdir())
+          checksum = directory / f'{tag}-windows-linux.sha256'
+          checksum.write_text(''.join(f'{hashlib.file_digest(p.open("rb"), "sha256").hexdigest()}  {p.name}\n'
+                                      for p in packages))
+          notes = pathlib.Path('release-notes.txt')
+          notes.write_text(f'OpenSCAD with OpenAxis support. Source commit: {os.environ["GITHUB_SHA"]}.\n\n'
+                           'Draft pending signed macOS assets and packaged application acceptance.\n'
+                           'Windows: x86-64, Qt5 and Qt6 portable ZIPs. Linux: Ubuntu 24.04 x86-64 DEB.\n'
+                           'macOS: Intel and Apple Silicon app archives are attached by the central signer.\n'
+                           'See doc/rotatrix.md at this tag for integration scope and validation.\n')
+          existing = subprocess.run(['gh', 'release', 'view', tag, '--repo', repo, '--json', 'isDraft,assets'],
+                                    capture_output=True, text=True)
+          files = [str(p) for p in packages] + [str(checksum)]
+          if existing.returncode == 0:
+              release = json.loads(existing.stdout)
+              if not release['isDraft']:
+                  raise SystemExit('Refusing to modify an already published release')
+              names = {a['name'] for a in release['assets']}
+              if names.intersection(pathlib.Path(p).name for p in files):
+                  raise SystemExit('Release assets already exist; refusing to overwrite')
+              subprocess.run(['gh', 'release', 'upload', tag, *files, '--repo', repo], check=True)
+          else:
+              # gh create fails safely if inspection failed for another reason or a release already exists.
+              command = ['gh', 'release', 'create', tag, *files, '--repo', repo, '--verify-tag',
+                         '--draft', '--title', tag, '--notes-file', str(notes)]
+              if re.search(r'-(alpha|beta|rc)\.', tag):
+                  command.append('--prerelease')
+              subprocess.run(command, check=True)
+          PY

@@ -1,6 +1,7 @@
 name: Linux Examples Tests
 
 on:
+  workflow_call:
   push:
     branches:
       - 'rotatrix/**'
@@ -9,7 +10,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: examples-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

@@ -1,6 +1,7 @@
 name: Windows(msys2) Experimental Tests
 
 on:
+  workflow_call:
   push:
     branches:
       - 'rotatrix/**'
@@ -20,7 +21,7 @@ on:
         default: false
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.qt_variant || 'all' }}
+  group: windows-${{ github.workflow }}-${{ github.ref }}-${{ inputs.qt_variant || 'all' }}
   cancel-in-progress: true
 
 jobs:
@@ -71,7 +72,7 @@ jobs:
       - name: Run Test Suite
         run: |
           cd build
-          ctest -j4
+          ctest -j4 --output-on-failure
       - name: Package Windows test build
         run: |
           cmake --install build --prefix "$PWD/package"
@@ -83,10 +84,23 @@ jobs:
           fi
           ldd build/openscad.exe | awk '/\/ucrt64\// {print $3}' | xargs -r -I{} cp '{}' package/
           test -f package/openscad.exe
+      - name: Archive and smoke-test Windows package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path artifacts | Out-Null
+          Compress-Archive -Path package/* -DestinationPath "artifacts/openscad-windows-x86_64-${{ matrix.qt }}-$env:GITHUB_SHA.zip"
+          Expand-Archive -Path "artifacts/*.zip" -DestinationPath package-check
+          # Exclude the MSYS2 build toolchain from DLL lookup.
+          $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
+          'cube([10,20,30]);' | Set-Content package-check/smoke.scad
+          & ./package-check/openscad.exe -o package-check/smoke.stl package-check/smoke.scad
+          if ($LASTEXITCODE -ne 0 -or !(Test-Path package-check/smoke.stl) -or (Get-Item package-check/smoke.stl).Length -eq 0) {
+            throw 'Extracted Windows package failed STL export'
+          }
       - uses: actions/upload-artifact@v7
         with:
           name: openscad-windows-${{ matrix.qt }}-${{ github.sha }}
-          path: package/
+          path: artifacts/*.zip
           retention-days: 10
           if-no-files-found: error
       - name: Setup (detached) tmate session if enabled

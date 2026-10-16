@@ -1,7 +1,23 @@
 name: ARM64 package rendering comparison
 on:
   workflow_call:
+    inputs:
+      repair_run:
+        type: string
+        required: true
+      upstream_run:
+        type: string
+        required: true
   workflow_dispatch:
+    inputs:
+      repair_run:
+        description: OpenAxis build run ID
+        type: string
+        required: true
+      upstream_run:
+        description: Exact upstream-baseline build run ID
+        type: string
+        required: true
 permissions:
   contents: read
   actions: read
@@ -11,17 +27,30 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
-      - name: Download existing repair and upstream packages
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          run-id: ${{ inputs.repair_run }}
+          github-token: ${{ github.token }}
+          pattern: macos-app-arm64-*.tar.gz
+          path: packages/repair
+          merge-multiple: true
+          skip-decompress: true
+          digest-mismatch: error
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          run-id: ${{ inputs.upstream_run }}
+          github-token: ${{ github.token }}
+          pattern: macos-app-arm64-*.tar.gz
+          path: packages/upstream
+          merge-multiple: true
+          skip-decompress: true
+          digest-mismatch: error
+      - name: Extract existing repair and upstream packages
         run: |
-          gh run download 36645322980 --repo rotatrix/openscad --name openscad-macos-arm64-qt6-d4bf8a711b4b58040f3bc3ebf9f75d1cbcfb883f --dir packages/repair
-          gh run download 36647981385 --repo rotatrix/openscad --name openscad-macos-arm64-qt6-d4bf8a711b4b58040f3bc3ebf9f75d1cbcfb883f-upstream-baseline --dir packages/upstream
           for variant in repair upstream; do
-            mkdir -p "packages/$variant/mount"
-            hdiutil attach "packages/$variant/OpenSCAD.dmg" -nobrowse -readonly -mountpoint "$PWD/packages/$variant/mount"
-            ditto "packages/$variant/mount/OpenSCAD.app" "packages/$variant/OpenSCAD.app"
-            hdiutil detach "packages/$variant/mount"
+            archives=(packages/"$variant"/*.tar.gz)
+            test "${#archives[@]}" -eq 1
+            tar -xzf "${archives[0]}" -C "packages/$variant"
           done
       - name: Compare repeated renders on the same native runner
         run: |

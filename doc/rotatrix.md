@@ -1,5 +1,91 @@
 # Rotatrix nightly OpenAxis integration
 
+## Current release preparation (2026-10-16)
+
+This section supersedes the historical CI summaries below. No release is qualified
+yet. The work branch remains disposable; do not promote it or create a release tag
+until the remaining acceptance checks are complete.
+
+### Repairs and local validation
+
+- Fixed malformed newline character literals in `tests/openaxis/overlay.cc`.
+- Reproduced the Qt5 backdrop assertion locally with the pinned SDK. The normal
+  status text measured wider under the fallback font than the test's fixed x=300
+  boundary. Use short fixture strings so the test checks excessive backdrop width
+  independently of normal status wrapping; rendering behavior is unchanged.
+- The standalone check project now links the SDK's CMake target (including its
+  JSON dependency) and optionally builds the Qt overlay test with
+  `-DENABLE_OVERLAY_TESTS=ON`. Supply `OPENAXIS_SOURCE_DIR` and `CMAKE_PREFIX_PATH`
+  for the SDK and Qt installation. Run `ctest --test-dir <build> -C Release
+  --output-on-failure`, with Qt DLLs on PATH on Windows.
+- Camera and overlay checks passed on Windows x86-64, MSVC 19.44, Qt 5.15.2,
+  using SDK `acc4da095`. This is not the MSYS2 Qt5 CI result or native GUI acceptance.
+
+### Release build and packaging
+
+`rotatrix-release.yml` calls the existing Linux, Windows and macOS workflows,
+including the Linux build matrix, non-experimental and example tests. Manual
+dispatch exercises the builds without publishing; a `*-rotatrix.*` tag push also
+creates a draft GitHub Release after every required job succeeds. No test exclusions
+or comparison tolerances were added. ARM64 failures continue to block release.
+
+- Windows x86-64: Qt5 and Qt6 portable ZIPs, extracted and smoke-tested with the
+  MSYS2 toolchain removed from DLL lookup. Installation remains extraction of the
+  complete ZIP; no new installer implementation.
+- Linux x86-64: existing Ubuntu 24.04 Qt6 DEB. This does not claim compatibility
+  with older distributions or ARM64; clean-machine installation remains pending.
+- macOS: native Intel and ARM64 builds use the same app-only `.tar.gz` for previews
+  and tags. `macdeployqt` bundles and ad-hoc signs the unchanged `OpenSCAD.app`
+  identity. The extracted app is checked for signatures, bundle ID, Mach-O
+  architecture and STL export. Tags also attest the archive for central signing.
+- SDK, IXWebSocket and OpenSCAD notices are included in the packaged resources.
+  Complete dependency-notice and corresponding-source verification remains a
+  release acceptance item.
+- The release draft contains the Windows/Linux packages and checksums. The central
+  signer appends signed/notarized macOS archives to that existing draft. No workflow
+  publishes the draft automatically or replaces existing assets.
+
+`notify-signer.yml` is copied from the central service's relay example, configured
+for the `Rotatrix release` workflow. It must be present on the default branch to
+receive completion events. Configure its `signing-dispatch` environment and
+`SIGNER_DISPATCH_TOKEN`; verify the private signer's publishing token includes this
+repository. Apple credentials stay in the central signer. No extra entitlements
+are currently requested; validate the signed app before deciding whether any are
+needed. Branch/PR artifacts cannot be promoted to signed releases.
+
+The ARM64 package comparison is now one reusable workflow, accepting explicit
+OpenAxis and upstream-baseline run IDs and the standard app archives. It no longer
+depends on expired September DMGs. Run the exact upstream baseline through the
+existing macOS dispatch option, then compare fresh artifacts. Its camera image
+comparison is diagnostic evidence, not a substitute for the full failing suite.
+
+### Maintenance review and remaining gates
+
+The changes retain upstream build commands, platform variants and dependency
+setup. Release orchestration calls those workflows instead of duplicating builds;
+the comparison workflow is deduplicated. Camera and rendering adapters remain
+isolated behind `ENABLE_OPENAXIS`. Keep adapter/tests, necessary build compatibility
+fixes and Rotatrix release infrastructure as separate patches during promotion.
+The diagnostic-test fixes belong with the integration. No generally useful upstream
+renderer fix has yet been established; do not submit speculative renderer changes.
+
+Static validation passed with actionlint, shell syntax checks and embedded Python
+parsing. Mocked draft-publication checks cover creation, existing drafts, duplicate
+assets, published releases, missing packages and invalid tags. Native packaging,
+attestation and signing have not yet run with these changes.
+
+GitHub repository Actions was enabled with permission on October 16, and the
+Windows workflow is active, but dispatch still returns HTTP 422, "Actions has been
+disabled for this repository." Organization policy cannot be inspected with the
+current token. Resolve that GitHub restriction before claiming platform results.
+The latest September platform runs no longer have downloadable artifacts.
+
+Remaining gates: full CI at one corrected revision; ARM64 failure qualification;
+native/device acceptance against the coverage table; clean-system package tests;
+notice/source checks; default-branch relay deployment and signing credentials;
+signed-package acceptance; then maintained-branch promotion and release. The
+existing nightly baseline exception remains in effect. No release tag was created.
+
 Upstream base: c2c321215e67b87d1f7f10f46f26bfafee04b215 (2026-09-01).
 The user selected a passing nightly instead of the 2021.01 stable release.
 All nine upstream push checks passed for this commit, including Linux release,
