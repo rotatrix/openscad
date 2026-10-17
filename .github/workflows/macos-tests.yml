@@ -69,6 +69,7 @@ jobs:
         PACKAGE_VARIANT: ${{ matrix.arch }}-qt6-${{ github.sha }}
       run: |
         cmake -DAPP_BUNDLE="$PWD/build/OpenSCAD.app" -P scripts/macos-translation-catalogs.cmake
+        python3 scripts/macos-dependency-notices.py build/OpenSCAD.app
         "$(brew --prefix qt)/bin/macdeployqt" build/OpenSCAD.app -codesign=-
         mkdir -p artifacts package-check
         COPYFILE_DISABLE=1 tar -czf "artifacts/macos-app-$PACKAGE_VARIANT.tar.gz" -C build OpenSCAD.app

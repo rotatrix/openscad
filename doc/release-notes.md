@@ -5,7 +5,7 @@ picking and viewport diagnostics. Includes repairs for navigation in an empty
 viewport and reconnecting after starting while the device is unavailable.
 
 Downloads:
-- Windows x86_64: extract either Qt5 or Qt6 ZIP; run openscad.exe. Packages are unsigned.
+- Windows x86_64: extract the Qt6 ZIP; run openscad.exe. Packages are unsigned.
 - macOS Apple Silicon / Intel: extract the signed, notarized app archive and move OpenSCAD.app to Applications.
 - Linux x86_64: Ubuntu 24.04 DEB. Older Ubuntu versions and Linux ARM64 are not release targets.
 

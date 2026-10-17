@@ -2,6 +2,10 @@ name: Windows(msys2) Experimental Tests
 
 on:
   workflow_call:
+    inputs:
+      qt_variant:
+        type: string
+        default: all
   workflow_dispatch:
     inputs:
       qt_variant:

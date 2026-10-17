@@ -14,7 +14,7 @@ OpenSCAD has no persistent geometry selection, so selection-only queries are una
 
 Packages preserve OpenSCAD's application identity and preferences. An upstream and
 Rotatrix build share settings and can replace one another in Applications.
-Windows downloads are portable ZIPs: extract the complete archive and run
+The Windows Qt6 download is a portable ZIP: extract the complete archive and run
 `openscad.exe` (`openscad.com` for command-line use). The Linux package targets
 Ubuntu 24.04 x86_64. On macOS, extract the archive and move `OpenSCAD.app` to Applications.
 Windows packages are unsigned; macOS release packages are signed and notarized.
@@ -24,3 +24,6 @@ are pinned by `cmake/OpenAxis.cmake` and the SDK's CMake files. Upstream depende
 and patches are recorded in the submodules and platform dependency scripts.
 Required OpenAxis/IXWebSocket notices accompany installed resources in `licenses`.
 See each release's notes for testing limitations.
+
+Qt5 remains supported by the upstream build options and manual Windows workflow;
+Rotatrix release downloads use Qt6.

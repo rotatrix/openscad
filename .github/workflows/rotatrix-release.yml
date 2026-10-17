@@ -35,6 +35,8 @@ jobs:
   windows:
     needs: candidate
     uses: ./.github/workflows/windows.yml
+    with:
+      qt_variant: qt6
   macos:
     needs: candidate
     permissions:

@@ -43,7 +43,7 @@ class PromotionChecks(unittest.TestCase):
 
     def test_all_required_platform_records_and_packages(self):
         names = promote.expected(SHA)
-        self.assertEqual(len(names), 5)
+        self.assertEqual(len(names), 4)
         self.assertFalse(any(n.startswith('build-') for n in names))
         self.assertFalse(any('installer' in n or 'double' in n for n in names))
         self.assertFalse(any('linux-arm64' in n or 'sources-' in n for n in names))
@@ -71,7 +71,7 @@ class PromotionChecks(unittest.TestCase):
                 else:
                     result = promote.prepare('nightly-2026.09.01-rotatrix.1', 42, Path(root))
                     self.assertEqual(result['run_id'], 42)
-                    self.assertEqual(len(result['artifacts']), 5)
+                    self.assertEqual(len(result['artifacts']), 4)
 
     def test_existing_draft_or_public_release_is_rejected(self):
         for draft in (True, False):
@@ -79,7 +79,7 @@ class PromotionChecks(unittest.TestCase):
                     [[dict(tag_name='tag', draft=draft)]])), self.assertRaisesRegex(ValueError, 'exists'):
                 promote.require_new_release('tag')
 
-    def test_draft_contains_only_five_downloads_and_checksums(self):
+    def test_draft_contains_only_four_downloads_and_checksums(self):
         with tempfile.TemporaryDirectory() as root:
             directory = Path(root)
             records = []
@@ -100,7 +100,7 @@ class PromotionChecks(unittest.TestCase):
                 self.assertIn('--draft', args)
                 self.assertIn('--verify-tag', args)
                 self.assertIn('--prerelease', args)
-                self.assertEqual(len((directory / 'SHA256SUMS').read_text().splitlines()), 5)
+                self.assertEqual(len((directory / 'SHA256SUMS').read_text().splitlines()), 4)
                 self.assertFalse(any('macos-app-' in arg or arg.endswith('.json') for arg in args))
             with patch('promote.tag_commit', return_value='b' * 40), self.assertRaisesRegex(ValueError, 'Tag moved'):
                 promote.draft(directory)
