@@ -8,6 +8,44 @@ until the remaining acceptance checks are complete.
 
 ### Multi-machine local testing
 
+#### ARM64 failure investigation
+
+Final corrected-fork run 38993220854 failed 25 tests: 13 preview tests, eight
+camera-image tests, one lazy-union preview and three SVG exports. Exact-upstream
+run 38988995233 failed 24; 23 final failing test names overlap. Fork-only failures
+are `preview-cgal_rotate-empty-bbox` and `preview-manifold_rotate_extrude-hole`;
+upstream-only is `preview-cgal_issue1105d`. HTML reports also retain failed attempts
+that subsequently passed, so their image entries are not the final failure list.
+
+Both CI hosts report macOS 15.7.9 VirtualMac2,1 and Apple Software Renderer,
+OpenGL 2.1. Inspection shows real preview corruption (for example, an extraneous
+triangle across the internal cavity), not harmless image-threshold noise. Fifteen
+of 20 shared report images are pixel-identical between upstream and fork. The
+other five differ, consistent with the varying failures but not proof of their
+cause. Local extracted evidence is in `.local-tools/failure-investigation/`.
+
+Lacroix compared both downloaded binaries on its Apple GPU: eleven representative
+image cases, five repetitions each, all passed the existing comparisons. All 55
+fork/upstream image pairs were pixel-identical and stable across repetitions.
+Both packages reproduce the three SVG failures. This strongly isolates the image
+corruption to the shared renderer/platform path exercised on the software-rendered
+CI host, rather than an identified OpenAxis regression; the faulty GL operation
+is still unknown. Do not waive failures or increase comparison tolerances.
+
+The SVG failures are a separate upstream numerical issue in `src/libsvg/path.cc`:
+ARM64 fused arithmetic changes semicircle rounding around 180 degrees, changing
+the discretization from 15 to 16 segments. Rebuilding only that upstream source
+with `-ffp-contract=off` passed the three unchanged tests in the local diagnostic
+experiment. This is evidence for a narrowly scoped upstream fix, not justification
+for disabling floating-point contraction globally or changing expected output.
+No production numerical or renderer fix has been applied.
+
+Additional existing-package comparison run 38997297943 checks repeated upstream
+and fork camera renders on the same ARM64 CI runner without rebuilding either app.
+Its result remains pending. Next steps are a minimal renderer reproducer on the
+software-rendered host, and an upstreamable SVG boundary fix with numeric tests;
+native device acceptance remains separate.
+
 The integrated source for local acceptance is `de5307adc169ead239c767c96d27ccb2b37bf68e`,
 including the empty-viewport and reconnect repairs. Windows' existing incremental
 Qt6/UCRT64 Release build is up to date and both OpenAxis tests pass. The runnable
