@@ -32,10 +32,12 @@ if(ENABLE_OPENAXIS)
   configure_file("${openaxis_cpp_source}/../LEGAL.md" "${openaxis_notices}/OpenAxis/LEGAL.md" COPYONLY)
   configure_file("${openaxis_cpp_source}/third_party/ixwebsocket/LICENSE.txt"
                  "${openaxis_notices}/IXWebSocket/LICENSE.txt" COPYONLY)
+  include("${CMAKE_CURRENT_LIST_DIR}/BundledNotices.cmake")
   if(APPLE AND NOT APPLE_UNIX)
     file(COPY "${openaxis_notices}/" DESTINATION "${BUNDLE_RESOURCES_DIR}/licenses")
   else()
-    install(DIRECTORY "${openaxis_notices}/" DESTINATION "${OPENSCAD_INSTALL_RESOURCEDIR}/licenses")
+    install(DIRECTORY "${openaxis_notices}/" DESTINATION "${OPENSCAD_INSTALL_RESOURCEDIR}/licenses"
+            COMPONENT Licenses)
   endif()
   if(ENABLE_TESTS)
     add_executable(OpenAxisCameraTests tests/openaxis/camera.cc)
