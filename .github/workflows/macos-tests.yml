@@ -110,7 +110,9 @@ jobs:
         if [ '${{ matrix.arch }}' = arm64 ]; then
           # Repeat failing cases to distinguish intermittent software-renderer
           # differences from reproducible failures. No tests are excluded.
-          ctest -j$NUMCPU -E pdfexporttest --repeat until-pass:3 --output-on-failure
+          result=0
+          ctest -j$NUMCPU -E pdfexporttest --repeat until-pass:3 --output-on-failure --output-junit arm64-tests.xml || result=$?
+          python3 ../scripts/check-arm64-tests.py arm64-tests.xml "$result"
         else
           ctest -j$NUMCPU -E pdfexporttest --output-on-failure
         fi
@@ -123,3 +125,4 @@ jobs:
         path: |
           build/Testing/Temporary/*_report.html
           build/Testing/Temporary/LastTest.log
+          build/arm64-tests.xml
