@@ -56,6 +56,11 @@ RUN cmake .. \
     cmake --build . --config Release && \
     cmake --install .
 
+# Keep source-built library notices alongside the installed payload.
+RUN mkdir -p /inst/share/openscad-dependency-notices/lib3mf && \
+    cp /tmp/build/lib3mf/LICENSE* /inst/share/openscad-dependency-notices/lib3mf/ && \
+    printf '%s\n' "${LIB3MF_URL}/v${LIB3MF_VERSION}.tar.gz" > /inst/share/openscad-dependency-notices/lib3mf/source.txt
+
 # -----------------------------------------------------------------------------
 # CGAL
 # -----------------------------------------------------------------------------
@@ -93,6 +98,10 @@ RUN cmake .. \
     cmake --build . --config Release && \
     cmake --install .
 
+RUN mkdir -p /inst/share/openscad-dependency-notices/CGAL && \
+    cp -r /tmp/build/cgal/LICENSE* /inst/share/openscad-dependency-notices/CGAL/ && \
+    printf '%s\n' "${CGAL_URL}/v${CGAL_VERSION}/CGAL-${CGAL_VERSION}-library.tar.xz" > /inst/share/openscad-dependency-notices/CGAL/source.txt
+
 # -----------------------------------------------------------------------------
 # QScintilla
 # -----------------------------------------------------------------------------
@@ -114,6 +123,10 @@ WORKDIR /build/QScintilla_src-2.14.1/src
 RUN qmake6 && \
     make -j$(nproc) && \
     make install INSTALL_ROOT=/inst
+
+RUN mkdir -p /inst/usr/share/openscad-dependency-notices/QScintilla && \
+    cp /build/QScintilla_src-2.14.1/LICENSE* /inst/usr/share/openscad-dependency-notices/QScintilla/ && \
+    printf '%s\n' 'https://www.riverbankcomputing.com/static/Downloads/QScintilla/2.14.1/QScintilla_src-2.14.1.tar.gz' > /inst/usr/share/openscad-dependency-notices/QScintilla/source.txt
 
 # -----------------------------------------------------------------------------
 # AppImage Tooling (LinuxDeploy)
