@@ -63,13 +63,19 @@ native exports/rendering. SHA256:
 `e1dd520f044ff5759e6e3507a3ef2e99eee9d7f074198c50884a173c313368ab`.
 Corrected Intel artifact 12087027162 also passed static bundle checks and all 14
 catalog checks, plus exports/rendering under already-installed Rosetta on Lacroix.
-Native Intel CI package smoke checks passed; its full suite is still running.
+Native Intel CI package smoke checks and its full suite passed in run 38993220854.
 SHA256: `35cbd9af57d957fea415a7e313ce9711bee91bcbc517ca53890d7870ea41d4af`.
 Fontconfig warned about a missing default configuration, although text export and
 rendering passed; retain this limitation for clean-machine acceptance.
 The manual-test app was preserved; GUI/device acceptance and ARM64 suite failures
 remain unwaived. Windows/Linux validated `de5307adc`; macOS validates `fd980bb26`,
 whose only additional source-tree changes are macOS packaging and catalog checks.
+
+Final packaging-fix CI completed: Intel passed; ARM64 failed 25 of 2695 tests.
+The build/downloaded-package verification monitor is complete and disabled;
+this is not release qualification. Preserve the ARM64 failures, Fontconfig warning,
+remaining native/device acceptance, clean-machine checks, notice/source audit and
+signing setup as open gates. No release or tag was created.
 
 Exact-upstream ARM64 baseline run 38988995233 also failed 24 tests, including the
 three SVG arc comparisons, camera images and preview images. The failure names are
