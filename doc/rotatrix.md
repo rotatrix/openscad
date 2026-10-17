@@ -6,6 +6,90 @@ This section supersedes the historical CI summaries below. No release is qualifi
 yet. The work branch remains disposable; do not promote it or create a release tag
 until the remaining acceptance checks are complete.
 
+### Multi-machine local testing
+
+The integrated source for local acceptance is `de5307adc169ead239c767c96d27ccb2b37bf68e`,
+including the empty-viewport and reconnect repairs. Windows' existing incremental
+Qt6/UCRT64 Release build is up to date and both OpenAxis tests pass. The runnable
+package is `work/openscad/.local-tools/OpenSCAD-local/openscad.exe` under the Windows
+`oss-forks` workspace; `navigation-smoke.scad` and `SOURCE-COMMIT.txt` accompany it.
+Its embedded version still reports the configure-time `a20a6fe97`; the source record
+identifies the integrated revision and matching executable hash.
+
+Preserve the existing Windows MSYS2/dependency cache rather than moving its paths.
+No workspace `tools/` cache existed on Windows at this handoff; new downloaded tools
+belong there. Lacroix and dliu-u26-vm are preparing the same revision in their own
+workspaces after inspecting existing builds and tool caches. Global toolchain
+defaults and other application builds must remain unchanged. Their native results
+and app paths are recorded below; downloaded CI package checks are still pending.
+
+On dliu-u26-vm (Ubuntu 26.04 x86_64, GCC 15.2), the clean `de5307adc` build
+is ready at `/home/dliu/code/oss-forks/work/openscad/build-local/run-openscad.sh`.
+It uses extracted local dependencies and workspace CMake 3.31.6 without changing
+system packages or global tools. The remote host reports 41 focused regressions,
+53 unit cases (296 assertions), CGAL/Manifold STL exports, 3MF export, PNG rendering
+and isolated GUI startup passed. Its scheduler probe delivered 128 callbacks with
+none early. Evidence: `ci-logs/linux-status.md` in that checkout. Linux physical-device
+acceptance remains pending.
+
+Lacroix (macOS 15.7.4 arm64) built clean `de5307adc`; manual-test app:
+`/Users/dliu/code/oss-forks/work/openscad/artifacts/local-de5307adc/OpenSCAD.app`.
+The remote host reports 53 unit cases passed and 76/79 focused tests passed;
+three SVG arc comparisons fail reproducibly and remain unresolved. Bundle signature,
+architecture/dependency checks, STL export and PNG rendering passed. GUI/device
+acceptance remains pending. Evidence: `ci-logs/lacroix-build-notes.md`.
+The older downloaded `a20a6fe97` app also passed packaging/runtime smoke checks.
+Integrated macOS CI 38988993347 builds both architectures; exact-upstream ARM64
+baseline 38988995233 will help qualify the unresolved failures. No test tolerances
+or feature coverage were reduced.
+
+Downloaded integrated ARM64 artifact 12085275016 has SHA256
+`aaf21fd726e788b9bd6688aff1078ab3974e5169fa4b15eed4697173941c75be`.
+Lacroix verified its archive layout, 60 internal symlinks, signatures, 98 ARM64
+binaries and dependency paths, plus STL/OBJ/3MF/SVG exports and preview/render PNGs.
+Packaging is not yet accepted: all 14 configured language catalogs are missing
+because resources were copied before translation generation. A minimal packaging
+order repair and completeness check are being prepared separately; the manual-test
+app is preserved. The locally validated repair is integrated as `fd980bb264048bd8aaa82094325fd8ebeb7dbf72`:
+copy generated catalogs before signing and verify each configured language after
+extraction. All 14 catalogs, signatures, archive extraction and STL export passed
+in separate local staging. No application source or Windows/Linux build changes.
+Run 38988993347 completed with 24 ARM64 failures out of 2695 tests; Intel had no
+failed steps in the failure log. Packaging-fix retry 38993220854 now builds both
+architectures at `fd980bb26`, after the prior run finished.
+Corrected ARM64 artifact 12086676249 passed downloaded-package validation on
+Lacroix, including all 14 catalogs, signatures, archive layout, dependencies and
+native exports/rendering. SHA256:
+`e1dd520f044ff5759e6e3507a3ef2e99eee9d7f074198c50884a173c313368ab`.
+Corrected Intel artifact 12087027162 also passed static bundle checks and all 14
+catalog checks, plus exports/rendering under already-installed Rosetta on Lacroix.
+Native Intel CI package smoke checks passed; its full suite is still running.
+SHA256: `35cbd9af57d957fea415a7e313ce9711bee91bcbc517ca53890d7870ea41d4af`.
+Fontconfig warned about a missing default configuration, although text export and
+rendering passed; retain this limitation for clean-machine acceptance.
+The manual-test app was preserved; GUI/device acceptance and ARM64 suite failures
+remain unwaived. Windows/Linux validated `de5307adc`; macOS validates `fd980bb26`,
+whose only additional source-tree changes are macOS packaging and catalog checks.
+
+Exact-upstream ARM64 baseline run 38988995233 also failed 24 tests, including the
+three SVG arc comparisons, camera images and preview images. The failure names are
+not identical across runs, so matching counts do not establish full equivalence.
+Lacroix traced the SVG failures to a semicircle rounding just above 180 degrees,
+yielding 16 rather than 15 segments; a diagnostic-only `-ffp-contract=off` build of
+upstream `path.cc` passed those three original tests. No numerical workaround or
+tolerance change has been applied to production. Remaining image failures still
+require qualification; baseline failure does not waive release acceptance.
+
+Manual checks: start with a blank document and navigate; preview the supplied test
+scene and navigate over geometry and empty space; test perspective/orthographic
+views and native mouse input; launch while the device is unavailable, then make
+it available without restarting OpenSCAD. Enable View > OpenAxis Diagnostics to
+inspect connection status, picks and pivot evidence. Do not replace a running app
+during manual testing. On October 16 the user confirmed both device-unavailable
+startup recovery and blank-document navigation work in the updated Windows local
+build. Those two manual checks pass; the remaining coverage and other platforms
+still require acceptance.
+
 ### Repairs and local validation
 
 - Reconnect deadlines now use precise Qt timers and re-arm if the SDK monotonic
@@ -14,12 +98,12 @@ until the remaining acceptance checks are complete.
   A local probe using the actual adapter scheduler reproduced 10 early callbacks
   out of 64 before the fix, and zero early or missing callbacks after the fix.
   Precise timers alone still produced a sub-millisecond early callback, so the
-  explicit SDK-clock guard is necessary. Device-unavailable startup recovery
-  remains a native acceptance check; SDK resilience to early hosts is separate.
+  explicit SDK-clock guard is necessary. The user confirmed device-unavailable
+  startup recovery on Windows; SDK resilience to early hosts is separate.
 - Empty viewports now keep their OpenAxis camera context before a scene renderer
   exists. Model bounds return null without a renderer; picking already handles
-  that case. Validate device motion in a new blank document, then preview geometry
-  and clear it again; native/device acceptance remains pending. The rebuilt local
+  that case. The user confirmed blank-document device motion on Windows; the
+  preview-then-clear transition and other platforms still need acceptance. The rebuilt local
   Windows Qt6 app passes both camera/overlay tests and standalone STL export.
 - Fixed malformed newline character literals in `tests/openaxis/overlay.cc`.
 - Reproduced the Qt5 backdrop assertion locally with the pinned SDK. The normal
@@ -95,7 +179,33 @@ failed the package smoke check: PowerShell launched the GUI executable without
 waiting, leaving the exit code unset. This was reproduced locally. The check now
 uses upstream's `openscad.com` console launcher, which waits and propagates the
 exit code; local clean-PATH export returned zero with a nonempty STL.
-The Windows retry and macOS run 38976880963 remain pending. These CI results
+Windows retry 38980885051 passed both Qt5 and Qt6, including extracted-package
+STL export with the build toolchain removed from PATH. It tests `31aad274c`;
+Integrated revision `de5307adc` Windows run 38984398419 passed both variants.
+Both ZIPs were downloaded and extracted locally under
+`.local-tools/ci-packages/38984398419/`. With PATH restricted to Windows system
+directories, both packages passed version invocation, STL and 3MF exports, and
+OpenGL PNG rendering. The Qt6 image was visually inspected. Packaged OpenAxis and
+IXWebSocket notices are present; complete dependency/source compliance remains a
+separate gate. Archive SHA256: Qt5 `06beb7bc6e69c20c86c8ad8d9036fd1240ef30721ba7cd95320cdb7859e77ef3`,
+Qt6 `e6b4baca3608846aaecc277fed33ed3911ddee33ec11ceb54a4db4e1cb157270`.
+This validates these packages on the local Windows host, not a clean Windows VM
+or physical-device acceptance of the downloaded apps. Integrated Linux package
+run 38986757800 passed. Its DEB was downloaded on Windows and transferred via
+verified SSH to `artifacts/ci-de5307adc.deb` on dliu-u26-vm for isolated package
+validation. SHA256: `d5b632474ce97d6c94ee38bf4f642e2c141af304b827c208f9c6851998158b84`.
+The Linux host verified the hash and size, then reported clean Ubuntu 24.04
+container installation, CGAL/Manifold STL exports, 3MF export, PNG rendering and
+GUI startup passed. Extracted-package checks on Ubuntu 26.04 also passed with nine
+locally supplied compatibility libraries; this does not establish native 26.04
+package compatibility without those libraries. Resources and OpenAxis notices
+were verified. Global packages and the manual-testing build remain untouched.
+Linux physical-device acceptance remains pending.
+macOS run 38976880963 completed with
+24 ARM64 failures out of 2695 tests, including preview images, SVG arcs and camera
+tests. Both architecture app archives were uploaded after native package checks;
+their existence does not waive the failing suite. Downloaded target-host package
+validation and fresh upstream-baseline qualification remain pending. These CI results
 precede the local empty-viewport and reconnect scheduler repairs described above.
 The latest September platform runs no longer have downloadable artifacts.
 
