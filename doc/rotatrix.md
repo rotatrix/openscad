@@ -40,11 +40,42 @@ experiment. This is evidence for a narrowly scoped upstream fix, not justificati
 for disabling floating-point contraction globally or changing expected output.
 No production numerical or renderer fix has been applied.
 
-Additional existing-package comparison run 38997297943 checks repeated upstream
-and fork camera renders on the same ARM64 CI runner without rebuilding either app.
-Its result remains pending. Next steps are a minimal renderer reproducer on the
-software-rendered host, and an upstreamable SVG boundary fix with numeric tests;
-native device acceptance remains separate.
+Existing-package comparison [run 38997297943](https://github.com/rotatrix/openscad/actions/runs/38997297943)
+completed with an image-comparison failure, not an infrastructure failure. It used
+the upstream package from 38988995233 and corrected fork from 38993220854 on one
+macOS 15.7.9 ARM64 runner, without rebuilding. Five repetitions of the same
+`--camera=120,80,60,0,0,0 --imgsize=500,500` case produced:
+
+| Attempt (zero-based) | Upstream vs reference | Fork vs reference | Pair comparison |
+| --- | --- | --- | --- |
+| 0 | Pass | Fail | Fail |
+| 1 | Fail | Fail | Pass |
+| 2 | Pass | Pass | Pass |
+| 3 | Pass | Pass | Pass |
+| 4 | Pass | Fail | Fail |
+
+Visual inspection of upstream-0, fork-0 and upstream-1 shows an intermittent
+background-colored notch through the upper-left rim in both binaries. These
+results establish within-binary instability on the same runner; they do not
+establish equal failure rates or exclude a downstream contribution. Five attempts
+are insufficient for that claim. Pair passes use the existing comparator and do
+not imply pixel identity. Artifact 12088405190 retains all ten images, masks,
+comparison log and results.json; downloaded evidence is under
+`.local-tools/failure-investigation/same-runner/`. No tolerances were changed.
+
+Lacroix also isolated the Intel Fontconfig warning to a separate downstream
+packaging omission: Resources/fonts lacks the upstream `fonts-osx` configuration.
+Upstream release-common.sh copies that configuration; the direct bundle path
+copies fonts only. A process-local FONTCONFIG_PATH pointing at fonts-osx removed
+the warning and exported the same 2168-triangle text model. No package was
+modified. A future packaging fix should include that configuration before signing
+and verify font discovery without host Homebrew configuration.
+
+This bounded investigation is complete and its monitor is paused. Remaining work
+is a minimal renderer reproducer/GL trace on the software-rendered host, an
+upstreamable SVG boundary fix with numeric tests, and the Fontconfig packaging
+repair. No production fixes are included in this investigation; native/device
+acceptance remains separate and the failures remain unresolved release gates.
 
 The integrated source for local acceptance is `de5307adc169ead239c767c96d27ccb2b37bf68e`,
 including the empty-viewport and reconnect repairs. Windows' existing incremental
