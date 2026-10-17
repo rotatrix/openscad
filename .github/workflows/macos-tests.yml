@@ -2,32 +2,13 @@ name: macOS Experimental Tests
 
 on:
   workflow_call:
-  push:
-    branches:
-      - 'rotatrix/**'
-  pull_request:
-    branches: ['rotatrix/*']
   workflow_dispatch:
     inputs:
-      package_comparison:
-        type: boolean
-        description: Compare existing ARM64 packages without rebuilding
-        default: false
-      repair_run:
-        type: string
-        description: OpenAxis run ID for package comparison
-      upstream_run:
-        type: string
-        description: Upstream-baseline run ID for package comparison
       architecture:
         type: choice
         description: Architecture for a focused retry
         options: [all, arm64, x86_64]
         default: all
-      upstream_baseline:
-        type: boolean
-        description: Diagnose the exact upstream source with the same runner and dependencies
-        default: false
       debug_enabled:
         type: boolean
         description: 'Run the build with ssh debugging enabled'
@@ -35,21 +16,11 @@ on:
         default: false
 
 concurrency:
-  group: macos-${{ github.workflow }}-${{ github.ref }}-${{ inputs.architecture || 'all' }}-${{ inputs.upstream_baseline || false }}
-  cancel-in-progress: true
+  group: macos-${{ github.workflow }}-${{ github.ref }}-${{ inputs.architecture || 'all' }}
+  cancel-in-progress: false
 
 jobs:
-  compare_packages:
-    if: inputs.package_comparison
-    permissions:
-      contents: read
-      actions: read
-    uses: ./.github/workflows/arm64-package-comparison.yml
-    with:
-      repair_run: ${{ inputs.repair_run }}
-      upstream_run: ${{ inputs.upstream_run }}
   build_and_test:
-    if: ${{ !inputs.package_comparison }}
     permissions:
       contents: read
       id-token: write
@@ -57,27 +28,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(inputs.architecture == 'arm64' && '[{"os":"macos-15","arch":"arm64","qt":"qt6"}]' || inputs.architecture == 'x86_64' && '[{"os":"macos-15-intel","arch":"x86_64","qt":"qt6"}]' || '[{"os":"macos-15-intel","arch":"x86_64","qt":"qt6"},{"os":"macos-15","arch":"arm64","qt":"qt6"}]') }}
+        include: ${{ fromJSON(inputs.architecture == 'arm64' && '[{"os":"macos-15","arch":"arm64"}]' || inputs.architecture == 'x86_64' && '[{"os":"macos-15-intel","arch":"x86_64"}]' || '[{"os":"macos-15-intel","arch":"x86_64"},{"os":"macos-15","arch":"arm64"}]') }}
     runs-on:  ${{ matrix.os }}
-    name: ${{ matrix.os }} ${{ matrix.arch }} ${{ matrix.qt }}
+    name: ${{ matrix.os }} ${{ matrix.arch }} qt6
     # If it's not done in 90 minutes, something is wrong.
     # Default is 6 hours, which is a bit long to wait.
     timeout-minutes: 90
     steps:
-    - name: Set Qt version
-      run: |
-        case ${{ matrix.qt }} in
-        qt5) echo "CMAKE_OPTIONS=-DUSE_QT6=0" >> $GITHUB_ENV ;;
-        esac
     - name: Checkout
       uses: actions/checkout@v7
       with:
         submodules: 'recursive'
-    - name: Restore upstream source for baseline comparison
-      if: inputs.upstream_baseline
-      run: |
-        git fetch origin c2c321215e67b87d1f7f10f46f26bfafee04b215
-        git restore --source=c2c321215e67b87d1f7f10f46f26bfafee04b215 -- CMakeLists.txt src
     - name: Setup (detached) tmate ssh session if enabled
       if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
       uses: mxschmitt/action-tmate@v3
@@ -95,17 +56,17 @@ jobs:
         OPENSCAD_INSTALL_CCACHE: 0
       run: |
         export HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1
-        ./scripts/macosx-build-homebrew.sh ${{ matrix.qt }}
+        ./scripts/macosx-build-homebrew.sh qt6
     - name: Build OpenSCAD
       run: |
         mkdir build
         cd build
-        cmake .. -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} -DENABLE_OPENAXIS=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_UNITY_BUILD=OFF -DEXPERIMENTAL=ON -DSNAPSHOT=ON -DUSE_CCACHE=OFF -DUSE_BUILTIN_OPENCSG=ON $CMAKE_OPTIONS
+        cmake .. -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} -DENABLE_OPENAXIS=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_UNITY_BUILD=OFF -DEXPERIMENTAL=ON -DSNAPSHOT=ON -DUSE_CCACHE=OFF -DUSE_BUILTIN_OPENCSG=ON
         export NUMCPU=$(($(sysctl -n hw.ncpu) * 3 / 2))
         make -j$NUMCPU
     - name: Bundle and archive macOS app
       env:
-        PACKAGE_VARIANT: ${{ matrix.arch }}-${{ matrix.qt }}-${{ github.sha }}${{ inputs.upstream_baseline && '-upstream-baseline' || '' }}
+        PACKAGE_VARIANT: ${{ matrix.arch }}-qt6-${{ github.sha }}
       run: |
         cmake -DAPP_BUNDLE="$PWD/build/OpenSCAD.app" -P scripts/macos-translation-catalogs.cmake
         "$(brew --prefix qt)/bin/macdeployqt" build/OpenSCAD.app -codesign=-
@@ -135,7 +96,7 @@ jobs:
         retention-days: 10
         if-no-files-found: error
     - name: Attest release app
-      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+      if: github.repository == 'rotatrix/openscad' && startsWith(github.ref, 'refs/heads/rotatrix/')
       uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661 # v3
       with:
         subject-path: artifacts/macos-app-*.tar.gz
@@ -156,7 +117,7 @@ jobs:
       uses: actions/upload-artifact@v7
       if: ${{ always() }}
       with:
-        name: Test Result Report (MacOS ${{ matrix.arch }} ${{ matrix.qt }})-${{ github.sha }}
+        name: Test Result Report (MacOS ${{ matrix.arch }} qt6)-${{ github.sha }}
         retention-days: 10
         path: |
           build/Testing/Temporary/*_report.html

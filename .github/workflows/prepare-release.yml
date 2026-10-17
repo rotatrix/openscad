@@ -1,0 +1,64 @@
+name: Prepare release draft
+
+on:
+  workflow_dispatch:
+    inputs:
+      release-tag:
+        description: Existing immutable tag at the tested commit
+        type: string
+        required: true
+      build-run-id:
+        description: Successful full-platform build at that exact commit
+        type: string
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: release-${{ inputs.release-tag }}
+  cancel-in-progress: false
+
+jobs:
+  draft:
+    if: github.repository == 'rotatrix/openscad' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Select existing build packages
+        id: select
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release-tag }}
+          BUILD_RUN_ID: ${{ inputs.build-run-id }}
+        run: python3 scripts/prepare-release.py prepare --tag "$RELEASE_TAG" --run-id "$BUILD_RUN_ID"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: rotatrix/release-signing
+          ref: 12fdf48b46bd4a08cec57524872c2b72cd944854 # shared signing client
+          token: ${{ secrets.SIGNER_DISPATCH_TOKEN }}
+          path: .signer
+          persist-credentials: false
+      - name: Request signed macOS packages
+        uses: ./.signer/actions/sign
+        with:
+          token: ${{ secrets.SIGNER_DISPATCH_TOKEN }}
+          source-repository: ${{ github.repository }}
+          source-run-id: ${{ inputs.build-run-id }}
+          artifact-ids: ${{ steps.select.outputs.mac-artifacts }}
+          release-tag: ${{ inputs.release-tag }}
+          output-directory: promotion/signed
+      - name: Create draft with final downloads and checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/prepare-release.py draft

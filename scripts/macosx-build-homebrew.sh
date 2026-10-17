@@ -60,14 +60,12 @@ done
 
 if [[ $USE_QT6 == 1 ]]; then 
   for formula in qt qscintilla2; do
-    if [[ "$formula" == ccache && "${OPENSCAD_INSTALL_CCACHE:-1}" == 0 ]]; then continue; fi
-  log "Installing formula $formula"
+    log "Installing formula $formula"
     brew ls --versions "$formula" || time brew install "$formula"
   done
 else
   for formula in qt5; do
-    if [[ "$formula" == ccache && "${OPENSCAD_INSTALL_CCACHE:-1}" == 0 ]]; then continue; fi
-  log "Installing formula $formula"
+    log "Installing formula $formula"
     brew ls --versions "$formula" || time brew install "$formula"
   done
   # FIXME: Workaround for https://github.com/openscad/openscad/issues/5058

@@ -2,30 +2,24 @@ name: Linux Release Build
 
 on:
   workflow_call:
-  push:
-    branches:
-      - 'rotatrix/**'
-  pull_request:
-    branches: ['rotatrix/*']
   workflow_dispatch:
 
 concurrency:
   group: linux-build-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-24.04 ]
         headless: [ ON, OFF ]
         enable_tests: [ ON, OFF ]
         enable_manifold: [ ON, OFF ]
 
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-24.04
 
-    name: ${{ matrix.os }}:HEADLESS=${{ matrix.headless }},ENABLE_TESTS=${{ matrix.enable_tests }},ENABLE_MANIFOLD=${{ matrix.enable_manifold }}
+    name: ubuntu-24.04:HEADLESS=${{ matrix.headless }},ENABLE_TESTS=${{ matrix.enable_tests }},ENABLE_MANIFOLD=${{ matrix.enable_manifold }}
 
     steps:
     - uses: actions/checkout@v7

@@ -2,16 +2,11 @@ name: Linux Experimental Tests
 
 on:
   workflow_call:
-  push:
-    branches:
-      - 'rotatrix/**'
-  pull_request:
-    branches: ['rotatrix/*']
   workflow_dispatch:
 
 concurrency:
   group: linux-tests-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -57,11 +52,12 @@ jobs:
       run: |
         cd b
         cpack -G DEB -D CPACK_DEBIAN_PACKAGE_MAINTAINER=Rotatrix -D CPACK_DEBIAN_PACKAGE_SHLIBDEPS=ON
-    - uses: actions/upload-artifact@v7
+        mv ./*.deb "openscad-linux-x86_64-qt6-$GITHUB_SHA.deb"
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
       if: matrix.os == 'ubuntu-24.04' && matrix.qt == 'qt6'
       with:
-        name: openscad-ubuntu-24.04-qt6-${{ github.sha }}
         path: b/*.deb
+        archive: false
         retention-days: 10
         if-no-files-found: error
     - name: Test
@@ -71,7 +67,7 @@ jobs:
       # Finally coverage reports what code paths got executed.
       run: ./scripts/github-ci.sh test test_examples test coverage
     - name: Upload Test Result Report
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
       if: ${{ always() }}
       with:
         name: Test Result Report (${{ matrix.os }} ${{ matrix.qt }})-${{ github.sha }}
@@ -80,7 +76,7 @@ jobs:
           b/Testing/Temporary/*_report.html
           b/Testing/Temporary/LastTest.log
     - name: Upload Code Coverage Report
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
       with:
         name: Code Coverage Report (${{ matrix.os }} ${{ matrix.qt }})-${{ github.sha }}
         retention-days: 10

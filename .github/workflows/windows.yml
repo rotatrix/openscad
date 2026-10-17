@@ -2,11 +2,6 @@ name: Windows(msys2) Experimental Tests
 
 on:
   workflow_call:
-  push:
-    branches:
-      - 'rotatrix/**'
-  pull_request:
-    branches: ['rotatrix/*']
   workflow_dispatch:
     inputs:
       qt_variant:
@@ -22,7 +17,7 @@ on:
 
 concurrency:
   group: windows-${{ github.workflow }}-${{ github.ref }}-${{ inputs.qt_variant || 'all' }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -84,6 +79,7 @@ jobs:
           fi
           ldd build/openscad.exe | awk '/\/ucrt64\// {print $3}' | xargs -r -I{} cp '{}' package/
           test -f package/openscad.exe
+          python scripts/windows-package-notices.py package package/licenses/msys2
       - name: Archive and smoke-test Windows package
         shell: pwsh
         run: |
@@ -98,17 +94,17 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or !(Test-Path package-check/smoke.stl) -or (Get-Item package-check/smoke.stl).Length -eq 0) {
             throw 'Extracted Windows package failed STL export'
           }
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: openscad-windows-${{ matrix.qt }}-${{ github.sha }}
           path: artifacts/*.zip
+          archive: false
           retention-days: 10
           if-no-files-found: error
       - name: Setup (detached) tmate session if enabled
         uses: mxschmitt/action-tmate@v3
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
       - name: Upload Test Result Report
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: ${{ always() }}
         with:
           name: Test Result Report (Windows ${{ matrix.qt }})-${{ github.sha }}

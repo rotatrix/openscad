@@ -2,17 +2,11 @@ name: Linux Release Tests
 
 on:
   workflow_call:
-  push:
-    branches:
-      - 'rotatrix/**'
-      - "*-non-experimental"
-  pull_request:
-    branches: ['rotatrix/*']
   workflow_dispatch:
 
 concurrency:
   group: linux-release-tests-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
