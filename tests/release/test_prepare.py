@@ -44,6 +44,7 @@ class PromotionChecks(unittest.TestCase):
     def test_all_required_platform_records_and_packages(self):
         names = promote.expected(SHA)
         self.assertEqual(len(names), 4)
+        self.assertIn(f'openscad-linux-x86_64-qt6-{SHA}.AppImage', names)
         self.assertFalse(any(n.startswith('build-') for n in names))
         self.assertFalse(any('installer' in n or 'double' in n for n in names))
         self.assertFalse(any('linux-arm64' in n or 'sources-' in n for n in names))
@@ -55,7 +56,7 @@ class PromotionChecks(unittest.TestCase):
                           workflow_run=dict(id=42, head_sha=SHA),
                           digest='sha256:' + hashlib.sha256(data).hexdigest())
                      for i, (name, data) in enumerate(payloads.items(), 1)]
-        jobs = [dict(name=n, conclusion='success') for n in ('linux / ubuntu-22.04 qt5', 'linux / ubuntu-24.04 qt5', 'linux / ubuntu-24.04 qt6', 'windows / windows-2022 qt5', 'windows / windows-2022 qt6', 'macos / macos-15 arm64 qt6', 'macos / macos-15-intel x86_64 qt6')]
+        jobs = [dict(name=n, conclusion='success') for n in ('linux / ubuntu-22.04 qt5', 'linux / ubuntu-24.04 qt5', 'linux / ubuntu-24.04 qt6', 'linux / AppImage x86_64', 'windows / windows-2022 qt6', 'macos / macos-15 arm64 qt6', 'macos / macos-15-intel x86_64 qt6')]
         for tamper in (False, True):
             def download(command, stdout, **kwargs):
                 artifact_id = int(command[-1].split('/')[-2])

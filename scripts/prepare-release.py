@@ -55,7 +55,7 @@ def validate_run(run, sha):
 
 def expected(sha):
     return {f'openscad-windows-x86_64-qt6-{sha}.zip',
-            f'openscad-linux-x86_64-qt6-{sha}.deb',
+            f'openscad-linux-x86_64-qt6-{sha}.AppImage',
             *(f'macos-app-{arch}-qt6-{sha}.tar.gz' for arch in ('arm64', 'x86_64'))}
 
 
@@ -85,7 +85,7 @@ def prepare(tag, run_id, output):
     validate_run(run, sha)
     jobs = pages(f'actions/runs/{run_id}/jobs?filter=latest', 'jobs')
     required = {'linux / ubuntu-22.04 qt5', 'linux / ubuntu-24.04 qt5',
-                'linux / ubuntu-24.04 qt6',
+                'linux / ubuntu-24.04 qt6', 'linux / AppImage x86_64',
                 'windows / windows-2022 qt6', 'macos / macos-15 arm64 qt6',
                 'macos / macos-15-intel x86_64 qt6'}
     require(required <= {j['name'] for j in jobs if j['conclusion'] == 'success'},

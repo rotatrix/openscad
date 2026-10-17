@@ -47,19 +47,6 @@ jobs:
       run: uv sync --project .github/ci/openscad-coverage
     - name: Build
       run: ./scripts/github-ci.sh experimental enable_python ${{ matrix.qt }} build
-    - name: Package Ubuntu test build
-      if: matrix.os == 'ubuntu-24.04' && matrix.qt == 'qt6'
-      run: |
-        cd b
-        cpack -G DEB -D CPACK_DEBIAN_PACKAGE_MAINTAINER=Rotatrix -D CPACK_DEBIAN_PACKAGE_SHLIBDEPS=ON
-        mv ./*.deb "openscad-linux-x86_64-qt6-$GITHUB_SHA.deb"
-    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-      if: matrix.os == 'ubuntu-24.04' && matrix.qt == 'qt6'
-      with:
-        path: b/*.deb
-        archive: false
-        retention-days: 10
-        if-no-files-found: error
     - name: Test
       # This is a bit wonky to use github-ci as it is.
       # `test` runs ctest, `test_examples` sets a persistent flag for ctest to run a different "configuration".
@@ -81,3 +68,58 @@ jobs:
         name: Code Coverage Report (${{ matrix.os }} ${{ matrix.qt }})-${{ github.sha }}
         retention-days: 10
         path: c/coverage*.html
+
+  appimage:
+    name: AppImage x86_64
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        submodules: recursive
+    - uses: docker/setup-buildx-action@v3
+    - name: Build upstream AppImage environment
+      uses: docker/build-push-action@v6
+      with:
+        context: .
+        file: scripts/docker/appimage-base/Dockerfile
+        target: appimage-base
+        tags: openscad-appimage-base:local
+        load: true
+        cache-from: type=gha,scope=openscad-appimage-base
+        cache-to: type=gha,scope=openscad-appimage-base,mode=max
+    - name: Install isolated CMake
+      run: |
+        mkdir -p "$RUNNER_TEMP/openscad-tools"
+        cd "$RUNNER_TEMP/openscad-tools"
+        base=https://github.com/Kitware/CMake/releases/download/v3.31.6
+        curl --fail --location --retry 3 -O "$base/cmake-3.31.6-linux-x86_64.tar.gz"
+        curl --fail --location --retry 3 -O "$base/cmake-3.31.6-SHA-256.txt"
+        grep ' cmake-3.31.6-linux-x86_64.tar.gz$' cmake-3.31.6-SHA-256.txt | sha256sum --check --strict
+        tar -xzf cmake-3.31.6-linux-x86_64.tar.gz
+    - uses: actions/cache@v4
+      with:
+        path: |
+          build-appimage/compile
+          build-appimage/python
+        key: appimage-x64-${{ hashFiles('scripts/docker/appimage-base/Dockerfile', 'scripts/uni-get-dependencies.sh', 'scripts/linux-appimage.sh') }}-${{ github.sha }}
+        restore-keys: |
+          appimage-x64-${{ hashFiles('scripts/docker/appimage-base/Dockerfile', 'scripts/uni-get-dependencies.sh', 'scripts/linux-appimage.sh') }}-
+    - name: Build and verify AppImage
+      run: |
+        docker run --rm \
+          -e OPENSCAD_COMMIT="$GITHUB_SHA" \
+          -e CMAKE=/tools/cmake/bin/cmake -e CMAKE_BUILD_PARALLEL_LEVEL=2 \
+          -v "$PWD:/openscad" \
+          -v "$RUNNER_TEMP/openscad-tools/cmake-3.31.6-linux-x86_64:/tools/cmake:ro" \
+          -w /openscad openscad-appimage-base:local bash scripts/linux-appimage.sh all
+    - name: Make build cache accessible
+      if: always()
+      run: |
+        if [ -d build-appimage ]; then sudo chown -R "$(id -u):$(id -g)" build-appimage; fi
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      with:
+        path: artifacts/appimage/*.AppImage
+        archive: false
+        retention-days: 10
+        if-no-files-found: error

@@ -15,8 +15,10 @@ OpenSCAD has no persistent geometry selection, so selection-only queries are una
 Packages preserve OpenSCAD's application identity and preferences. An upstream and
 Rotatrix build share settings and can replace one another in Applications.
 The Windows Qt6 download is a portable ZIP: extract the complete archive and run
-`openscad.exe` (`openscad.com` for command-line use). The Linux package targets
-Ubuntu 24.04 x86_64. On macOS, extract the archive and move `OpenSCAD.app` to Applications.
+`openscad.exe` (`openscad.com` for command-line use). The Linux x86_64 AppImage uses
+upstream's Ubuntu 22.04 build baseline: mark it executable and run it. If FUSE is
+unavailable, run with `--appimage-extract-and-run`. On macOS, extract the archive
+and move `OpenSCAD.app` to Applications.
 Windows packages are unsigned; macOS release packages are signed and notarized.
 
 Application source is available at the release tag. OpenAxis and its dependencies
