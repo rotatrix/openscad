@@ -10,7 +10,7 @@ from urllib.parse import quote
 
 REPO = 'rotatrix/openscad'
 WORKFLOW = '.github/workflows/rotatrix-release.yml'
-TAG = re.compile(r'(nightly-[0-9]{4}\.[0-9]{2}\.[0-9]{2})-rotatrix\.[1-9][0-9]*(?:-beta\.[1-9][0-9]*)?\Z')
+TAG = re.compile(r'(nightly-2026\.09\.01)-rotatrix\.[1-9][0-9]*(?:-beta\.[1-9][0-9]*)?\Z')
 
 
 def require(value, message):
