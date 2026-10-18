@@ -10,9 +10,8 @@ Downloads:
 - Linux x86_64: AppImage built with upstream's Ubuntu 22.04 recipe. Mark it executable and run it; Linux ARM64 is not a release target.
 
 Preview limitations:
-- ARM64 CI on Apple's software renderer exhibits intermittent corrupted preview/camera images, also reproduced with exact upstream packages. Repeated hardware-rendered tests on an M1 Pro passed; the underlying software-rendering fault is unresolved.
-- Three ARM64 SVG arc comparisons reproduce upstream numerical rounding differences.
-- macOS/Linux physical-device acceptance is incomplete. Automated package/startup checks do not establish device acceptance.
+- macOS software rendering: previews may show visual artifacts when using Apple's software renderer. This also occurs upstream; it was not reproduced with hardware rendering on the tested M1 Pro.
+- SVG arcs on Apple Silicon: some imported arcs may have slightly different segmentation due to an upstream rounding issue.
 
 This preview shares OpenSCAD's application identity and preferences with upstream.
 Source and pinned dependency references are available at this release's immutable
