@@ -56,7 +56,7 @@ class PromotionChecks(unittest.TestCase):
                           workflow_run=dict(id=42, head_sha=SHA),
                           digest='sha256:' + hashlib.sha256(data).hexdigest())
                      for i, (name, data) in enumerate(payloads.items(), 1)]
-        jobs = [dict(name=n, conclusion='success') for n in ('linux / ubuntu-22.04 qt5', 'linux / ubuntu-24.04 qt5', 'linux / ubuntu-24.04 qt6', 'linux / AppImage x86_64', 'windows / windows-2022 qt6', 'macos / macos-15 arm64 qt6', 'macos / macos-15-intel x86_64 qt6')]
+        jobs = [dict(name=n, conclusion='success') for n in ('linux / ubuntu-24.04 qt6', 'linux / AppImage x86_64', 'windows / windows-2022 qt6', 'macos / macos-15 arm64 qt6', 'macos / macos-15-intel x86_64 qt6')]
         for tamper in (False, True):
             def download(command, stdout, **kwargs):
                 artifact_id = int(command[-1].split('/')[-2])

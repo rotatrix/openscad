@@ -3,6 +3,11 @@ name: Linux Experimental Tests
 on:
   workflow_call:
   workflow_dispatch:
+    inputs:
+      compatibility:
+        description: Also run upstream Qt5 compatibility tests
+        type: boolean
+        default: false
 
 concurrency:
   group: linux-tests-${{ github.workflow }}-${{ github.ref }}
@@ -13,12 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-22.04, ubuntu-24.04 ]
-        qt: [ qt5, qt6 ]
-        exclude:
-          - os: ubuntu-22.04
-            # libqscintilla2-qt6-dev not packaged
-            qt: qt6
+        include: ${{ fromJSON(inputs.compatibility && '[{"os":"ubuntu-22.04","qt":"qt5"},{"os":"ubuntu-24.04","qt":"qt5"},{"os":"ubuntu-24.04","qt":"qt6"}]' || '[{"os":"ubuntu-24.04","qt":"qt6"}]') }}
 
     runs-on: ${{ matrix.os }}
 

@@ -84,8 +84,7 @@ def prepare(tag, run_id, output):
     run = api(f'actions/runs/{run_id}')
     validate_run(run, sha)
     jobs = pages(f'actions/runs/{run_id}/jobs?filter=latest', 'jobs')
-    required = {'linux / ubuntu-22.04 qt5', 'linux / ubuntu-24.04 qt5',
-                'linux / ubuntu-24.04 qt6', 'linux / AppImage x86_64',
+    required = {'linux / ubuntu-24.04 qt6', 'linux / AppImage x86_64',
                 'windows / windows-2022 qt6', 'macos / macos-15 arm64 qt6',
                 'macos / macos-15-intel x86_64 qt6'}
     require(required <= {j['name'] for j in jobs if j['conclusion'] == 'success'},

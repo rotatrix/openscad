@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       source_sha:
-        description: Approved full source SHA (must match the selected ref)
+        description: Selected full source SHA (must match the selected ref)
         type: string
         required: true
 
