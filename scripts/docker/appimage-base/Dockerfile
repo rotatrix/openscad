@@ -196,6 +196,10 @@ RUN --mount=type=bind,source=scripts/uni-get-dependencies.sh,target=./uni-get-de
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+# Ship matching desktop and multimedia plugins with the AppImage runtime.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    qt6-wayland gstreamer1.0-plugins-good && rm -rf /var/lib/apt/lists/*
+
 COPY --from=lib3mf-builder /inst /usr/
 COPY --from=cgal-builder /inst /usr/
 COPY --from=qscintilla-builder /inst/usr /usr/

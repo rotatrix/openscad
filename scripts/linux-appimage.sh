@@ -41,13 +41,38 @@ package_app() {
   # A fresh package tree avoids retaining removed resources from earlier builds.
   rm -rf -- "$appdir"
   DESTDIR="$appdir" "$cmake" --install "$build/compile"
+  # Keep dynamically loaded GStreamer plugins/scanner matched to bundled GLib
+  # and GStreamer; otherwise newer desktop plugins resolve against older libs.
+  local multiarch
+  multiarch=$(gcc -print-multiarch)
+  mkdir -p "$appdir/usr/plugins/gstreamer-1.0" "$appdir/usr/libexec/gstreamer-1.0"
+  cp -a /usr/lib/"$multiarch"/gstreamer-1.0/*.so "$appdir/usr/plugins/gstreamer-1.0/"
+  cp /usr/lib/"$multiarch"/gstreamer1.0/gstreamer-1.0/gst-plugin-scanner "$appdir/usr/libexec/gstreamer-1.0/"
+  # GIO also discovers host modules unless its matching module set is selected.
+  mkdir -p "$appdir/usr/plugins/gio" "$appdir/usr/lib"
+  cp -a /usr/lib/"$multiarch"/gio/modules/* "$appdir/usr/plugins/gio/"
+  # linuxdeploy excludes JACK as a desktop library, but the shipped JACK plugin
+  # must load on the clean baseline even without a JACK server installed.
+  cp -L /usr/lib/"$multiarch"/libjack.so.0 "$appdir/usr/lib/libjack.so.0"
+  # Qt's deployment plugin omits some Qt 6.2 Wayland client integrations.
+  local category
+  for category in wayland-decoration-client wayland-graphics-integration-client wayland-shell-integration; do
+    mkdir -p "$appdir/usr/plugins/$category"
+    cp -a /usr/lib/"$multiarch"/qt6/plugins/"$category"/*.so "$appdir/usr/plugins/$category/"
+  done
+  # --deploy-deps-only traverses one directory level, so pass each category.
+  local deploy_args=(--deploy-deps-only "$appdir/usr/libexec/gstreamer-1.0" --deploy-deps-only "$appdir/usr/lib/libjack.so.0")
+  for category in "$appdir"/usr/plugins/*; do
+    deploy_args+=(--deploy-deps-only "$category")
+  done
   export PATH=/appimage/usr/bin:"$PATH"
-  export EXTRA_QT_PLUGINS=svg QMAKE=/usr/bin/qmake6
+  export EXTRA_QT_PLUGINS="svg;wayland-decoration-client;wayland-graphics-integration-client;wayland-shell-integration" QMAKE=/usr/bin/qmake6
+  export EXTRA_PLATFORM_PLUGINS="libqwayland-egl.so;libqwayland-generic.so"
   export PYTHON_VERSION=$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:3])))')
   export PYTHON_BUILD_DIR="$build/python" NPROC="$jobs"
   export LINUXDEPLOY_OUTPUT_VERSION="$version-$commit"
   # Deploy before creating the final AppImage so bundled-library notices enter it.
-  (cd "$build" && linuxdeploy --plugin python --plugin qt --appdir "$appdir")
+  (cd "$build" && linuxdeploy --plugin python --plugin qt --appdir "$appdir" "${deploy_args[@]}")
   python3 - "$appdir" "$PYTHON_BUILD_DIR" <<'PY'
 import pathlib, shutil, subprocess, sys
 app, python_build = map(pathlib.Path, sys.argv[1:])
@@ -96,10 +121,16 @@ APPDIR=$(CDPATH= cd -- "$(dirname -- "$(readlink -f -- "$0")")" && pwd)
 export APPDIR
 export PYTHONHOME="$APPDIR/usr"
 unset PYTHONPATH
+export GST_PLUGIN_SYSTEM_PATH_1_0="$APPDIR/usr/plugins/gstreamer-1.0"
+export GST_PLUGIN_PATH_1_0=
+export GST_PLUGIN_SCANNER_1_0="$APPDIR/usr/libexec/gstreamer-1.0/gst-plugin-scanner"
+export GIO_MODULE_DIR="$APPDIR/usr/plugins/gio"
+export GIO_EXTRA_MODULES=
+export GST_REGISTRY_1_0="${XDG_CACHE_HOME:-$HOME/.cache}/openscad-appimage/gstreamer-registry.bin"
 exec "$APPDIR/usr/bin/openscad" "$@"
 APPRUN
   chmod +x "$appdir/AppRun"
-  (cd "$build" && linuxdeploy --appdir "$appdir" --output appimage)
+  (cd "$build" && linuxdeploy --appdir "$appdir" "${deploy_args[@]}" --output appimage)
   # Snapshot desktop names may add a Nightly suffix; select only this exact version.
   local matches=("$build"/*"$LINUXDEPLOY_OUTPUT_VERSION"*-x86_64.AppImage)
   [[ ${#matches[@]} == 1 && -f ${matches[0]} ]] || { echo 'Expected one AppImage' >&2; return 1; }
@@ -135,6 +166,12 @@ smoke_app() {
     "$app" --trust-python --enable=python-engine -o "$smoke/python-host-env.stl" "$smoke/model with spaces.py"
   test -s "$smoke/python-host-env.stl"
   test -f "$smoke/squashfs-root/usr/share/openscad/licenses/OpenAxis/LICENSE"
+  # Exercise bundled media decoding and reject accidental host plugin discovery.
+  XDG_CACHE_HOME="$smoke/cache" PROBE_WAV="$smoke/probe.wav" \
+    GST_PLUGIN_SYSTEM_PATH_1_0=/usr/lib/x86_64-linux-gnu/gstreamer-1.0 \
+    GST_PLUGIN_SCANNER_1_0=/not-the-package \
+    "$app" --trust-python --enable=python-engine -o "$smoke/multimedia.stl" "$root/tests/appimage/multimedia.py"
+  test -s "$smoke/multimedia.stl"
   # Optional on non-desktop machines; the builder image includes xvfb-run.
   if command -v xvfb-run >/dev/null; then
     local status=0
