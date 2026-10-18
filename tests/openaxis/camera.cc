@@ -86,6 +86,33 @@ int main()
       shifted.t = vec(vec(pose.t) + vec(openaxis::Quat::from_rotvec(pose.r).rotate({1, 0, 0})));
       require(compare(realized, shifted).changed, "ortho view-plane movement ignored");
     }
+    for (bool perspective : {false, true}) {
+      // A closed Rotatrix orbit must not accumulate target drift. An off-axis
+      // pivot sets depth without turning the camera toward it. Native mouse
+      // rotation then retains that target and the projection scale.
+      Eigen::Vector3d angles(0, 0, 0), translation(35, -22, 13);
+      double distance = 100, fov = 45;
+      const Eigen::Vector3d pivot(10, 20, 30);
+      Eigen::Vector3d initial_target;
+      for (int step = 0; step <= 720; ++step) {
+        auto requested = read({0, 0, double(step)}, -pivot, 100, 45, perspective);
+        const auto q = openaxis::Quat::from_rotvec(requested.r);
+        const auto back = vec(q.rotate({0, 0, 1}));
+        requested.t = vec(vec(requested.t) + vec(q.rotate({1, 0, 0})) * 17);
+        require(write(requested, angles, translation, distance, fov, vec(pivot)), "pivot orbit rejected");
+        const Eigen::Vector3d target = vec(requested.t) - back * (vec(requested.t) - pivot).dot(back);
+        require((-translation).isApprox(target, 1e-9), "pivot-depth target drift");
+        require(!compare(requested, read(angles, translation, distance, fov, perspective)).changed,
+                "pivot update changed requested view");
+        if (step == 0) initial_target = -translation;
+        if (step == 720) require((-translation).isApprox(initial_target, 1e-9), "closed orbit drift");
+      }
+      // Native mouse rotation changes angles alone, around the retained target.
+      angles.z() += 20;
+      const auto mouse = read(angles, translation, distance, fov, perspective);
+      const auto back = vec(openaxis::Quat::from_rotvec(mouse.r).rotate({0, 0, 1}));
+      require((vec(mouse.t) - back * distance).isApprox(initial_target, 1e-9), "mouse handoff target");
+    }
     for (int fault = 0; fault < 4; ++fault) {
       auto invalid = origin;
       if (fault == 0) invalid.r.x = std::numeric_limits<double>::quiet_NaN();

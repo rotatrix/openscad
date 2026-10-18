@@ -286,11 +286,11 @@ struct OpenAxisController::Impl : openaxis::NavigationAdapter {
   }
   openaxis::WriteResult apply_pose(const openaxis::NavigationContext& c,
                                    const openaxis::NavigationPose& p, const openaxis::Value&,
-                                   std::optional<openaxis::Vec3>) override
+                                   std::optional<openaxis::Vec3> pivot) override
   {
     if (!is_current(c)) return {};
     double distance = view.cam.zoomValue(), fov = view.cam.fov;
-    if (!OpenAxisCamera::write(p, view.cam.object_rot, view.cam.object_trans, distance, fov)) return {};
+    if (!OpenAxisCamera::write(p, view.cam.object_rot, view.cam.object_trans, distance, fov, pivot)) return {};
     view.cam.setVpd(distance);
     view.cam.setVpf(fov);
     view.cam.setProjection(p.fov > 0 ? Camera::ProjectionType::PERSPECTIVE

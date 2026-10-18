@@ -3,6 +3,7 @@
 #include <openaxis/geometry.hpp>
 #include <openaxis/diagnostics.hpp>
 #include <cmath>
+#include <optional>
 
 namespace OpenAxisCamera {
 constexpr double radians = 3.14159265358979323846 / 180.;
@@ -41,7 +42,7 @@ inline openaxis::Pose read(const Eigen::Vector3d& angles, const Eigen::Vector3d&
   return p;
 }
 inline bool write(const openaxis::Pose& p, Eigen::Vector3d& angles, Eigen::Vector3d& translation,
-                  double& distance, double& fov)
+                  double& distance, double& fov, std::optional<openaxis::Vec3> pivot = std::nullopt)
 {
   if (!vec(p.t).allFinite() || !vec(p.r).allFinite() || !std::isfinite(p.fov) ||
       !std::isfinite(p.ortho_extent) || p.fov < 0 || p.ortho_extent < 0 ||
@@ -53,9 +54,11 @@ inline bool write(const openaxis::Pose& p, Eigen::Vector3d& angles, Eigen::Vecto
   world.col(1) = vec(q.rotate({0, 1, 0}));
   world.col(2) = vec(q.rotate({0, 0, 1}));
   // OpenSCAD orbits the mouse around -translation, placed `distance` in front of
-  // the eye. Keep that centre at its previous depth on the new view axis so
-  // Rotatrix dolly and orbit do not drag the native orbit centre with the eye.
-  const Eigen::Vector3d eye = vec(p.t), back = world.col(2), centre = -translation;
+  // the eye. Use the supplied pivot's depth, not the previous frame's projected
+  // centre: repeatedly projecting that centre accumulates mouse-orbit drift.
+  // Keep the requested viewing direction even when the pivot is off-axis.
+  const Eigen::Vector3d eye = vec(p.t), back = world.col(2);
+  const Eigen::Vector3d centre = pivot && vec(*pivot).allFinite() ? vec(*pivot) : -translation;
   double next_fov = p.fov > 0 ? p.fov / radians : fov;
   double next_distance;
   Eigen::Vector3d target;
